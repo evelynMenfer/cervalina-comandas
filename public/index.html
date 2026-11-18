@@ -207,6 +207,12 @@ input[type=date]{border:1px solid var(--line);background:var(--surface);border-r
 .rows{display:grid;gap:6px}
 .vrow{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) 40px;gap:6px;align-items:center}
 .rrow{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,1fr) 40px;gap:6px;align-items:center}
+.cat-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--line);border-radius:10px}
+.cat-row.borrar{border-color:var(--bad);background:var(--bad-soft)}
+.cat-row input{flex:1;min-width:140px}
+.cat-nom{flex:1;min-width:120px}
+.cat-ord{display:flex;gap:4px}
+.x:disabled{opacity:.3;cursor:default}
 .x{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--paper);font-size:18px}
 .hint{font-size:13px;color:var(--ink-2);margin:0}
 .chk{display:flex;align-items:center;gap:10px;font-weight:600}
@@ -505,7 +511,42 @@ function cats(){
   const set = new Set(Object.values(S.productos).filter(p => p.activo!==false).map(p => p.cat||'Otros'));
   return [...set].sort(ordenCat);
 }
-function ordenCat(a,b){ const ia=CAT_ORDER.indexOf(a), ib=CAT_ORDER.indexOf(b); return ((ia<0?99:ia)-(ib<0?99:ib)) || a.localeCompare(b); }
+function ordenCatBase(a,b){ const ia=CAT_ORDER.indexOf(a), ib=CAT_ORDER.indexOf(b); return ((ia<0?99:ia)-(ib<0?99:ib)) || a.localeCompare(b); }
+function todasCats(){
+  const base = Array.isArray(S.categorias) ? S.categorias.slice() : [];
+  [...new Set(Object.values(S.productos).map(p => p.cat||'Otros'))].sort(ordenCatBase).forEach(c => { if (!base.includes(c)) base.push(c); });
+  return base;
+}
+function ordenCat(a,b){ const L = todasCats(); return L.indexOf(a) - L.indexOf(b); }
+function subCategorias(db){
+  db.doc('config/categorias').onSnapshot(s => { const d = s.exists ? s.data() : null; S.categorias = d && Array.isArray(d.lista) ? d.lista : null; render(); }, () => {});
+}
+function guardarCats(L){ S.categorias = L; return enqueue('config/categorias', () => S.db.doc('config/categorias').set({lista:L})); }
+function moverProductos(de, a){
+  Object.values(S.productos).filter(p => (p.cat||'Otros')===de).forEach(p => {
+    p.cat = a;
+    enqueue('productos/'+p.id, () => S.db.doc('productos/'+p.id).update({cat:a}));
+  });
+}
+const nProdCat = c => Object.values(S.productos).filter(p => (p.cat||'Otros')===c).length;
+function modalCategorias(){ M = {cats:true, editando:null, borrando:null}; pintarCategorias(); }
+function pintarCategorias(){
+  const L = todasCats();
+  openModal(`<h2>Categorías</h2>
+    <p class="hint" style="margin:0">El orden de esta lista es el orden en que aparecen en la carta. Usa las flechas para moverlas.</p>
+    <div class="rows">${L.length ? L.map((c,ix) => {
+      const n = nProdCat(c);
+      if (M.editando===c) return `<div class="cat-row"><input id="f-catren" class="mini" value="${esc(c)}" aria-label="Nuevo nombre"><button class="btn sm primary" data-act="catRenombrarOk" data-c="${esc(c)}">Guardar</button><button class="btn sm" data-act="catCancelar">Cancelar</button></div>`;
+      if (M.borrando===c) return `<div class="cat-row borrar"><span class="cat-nom"><b>¿Eliminar ${esc(c)}?</b>${n ? `<br><small class="hint">Sus ${n} ${n===1?'producto pasa':'productos pasan'} a:</small>` : ''}</span>
+        ${n ? (L.length>1 ? `<select id="f-catdest" class="mini" style="width:auto">${L.filter(x => x!==c).map(x => `<option>${esc(x)}</option>`).join('')}</select>` : `<small class="hint">Crea otra categoría primero para mover sus productos.</small>`) : ''}
+        <button class="btn sm danger armed" data-act="catBorrarOk" data-c="${esc(c)}" ${n && L.length<2 ? 'disabled' : ''}>Eliminar</button><button class="btn sm" data-act="catCancelar">Cancelar</button></div>`;
+      return `<div class="cat-row"><div class="cat-ord"><button class="x" data-act="catMover" data-ix="${ix}" data-d="-1" ${ix===0?'disabled':''} aria-label="Subir">↑</button><button class="x" data-act="catMover" data-ix="${ix}" data-d="1" ${ix===L.length-1?'disabled':''} aria-label="Bajar">↓</button></div>
+        <span class="cat-nom"><b>${esc(c)}</b><br><small class="hint">${n ? n+(n===1?' producto':' productos') : 'Sin productos'}</small></span>
+        <button class="btn sm" data-act="catRenombrar" data-c="${esc(c)}">Renombrar</button><button class="btn sm ghost" data-act="catBorrar" data-c="${esc(c)}" style="color:var(--bad)">Eliminar</button></div>`;
+    }).join('') : '<p class="hint">Aún no hay categorías.</p>'}</div>
+    <div class="field"><span class="lbl">Nueva categoría</span><div class="cat-row"><input id="f-catalta" class="mini" placeholder="Ej. Postres" aria-label="Nombre de la nueva categoría"><button class="btn sm primary" data-act="catAgregar">Agregar</button></div></div>
+    <div class="mact"><button class="btn primary" data-act="cerrar">Listo</button></div>`);
+}
 function prodsDe(cat, todos){
   return Object.values(S.productos).filter(p => (todos || p.activo!==false) && (p.cat||'Otros')===cat)
     .sort((a,b) => ((a.orden??999)-(b.orden??999)) || a.nombre.localeCompare(b.nombre));
@@ -624,8 +665,8 @@ function vInsumos(){
 
 /* ---------- Menú ---------- */
 function vMenu(){
-  const todas = [...new Set(Object.values(S.productos).map(p => p.cat||'Otros'))].sort(ordenCat);
-  return `<div class="toolbar"><h2>Menú y recetas</h2><button class="btn primary" data-act="prodEditar" data-id="">+ Nuevo producto</button></div>
+  const todas = todasCats();
+  return `<div class="toolbar"><h2>Menú y recetas</h2><button class="btn" data-act="categorias">Categorías</button><button class="btn primary" data-act="prodEditar" data-id="">+ Nuevo producto</button></div>
     ${todas.length ? todas.map(c => `<div class="card mcat"><h3>${esc(c)}</h3><div class="tw"><table><thead><tr><th>Producto</th><th>Precio</th><th>Área</th><th>Receta</th><th>Activo</th><th></th></tr></thead><tbody>
       ${prodsDe(c,true).map(p => {
         const precios = p.vars && p.vars.length ? p.vars.map(v => `${esc(v.n)} ${money(v.p)}`).join(' · ') : money(p.precio);
@@ -633,7 +674,7 @@ function vMenu(){
         return `<tr><td><strong>${esc(p.nombre)}</strong></td><td class="num">${precios}</td><td>${p.area==='barra'?'Barra':'Cocina'}</td><td>${nRec}</td>
           <td><button class="switch ${p.activo!==false?'on':''}" data-act="prodToggle" data-id="${esc(p.id)}" aria-label="Activo"></button></td>
           <td class="r"><button class="btn sm" data-act="prodEditar" data-id="${esc(p.id)}">Editar</button></td></tr>`;
-      }).join('')}</tbody></table></div></div>`).join('') : `<div class="empty" style="display:grid;gap:10px;justify-items:center"><span>Aún no hay productos. Crea el primero con “+ Nuevo producto” o carga la carta de Cervalina.</span>${S.loaded.p ? `<button class="btn primary" data-act="cargarCarta">Cargar carta e insumos de Cervalina</button>` : ''}</div>`}`;
+      }).join('') || `<tr><td colspan="6" class="hint">Sin productos en esta categoría. <button class="link" data-act="prodEditar" data-id="" data-cat="${esc(c)}">Agregar uno</button></td></tr>`}</tbody></table></div></div>`).join('') : `<div class="empty" style="display:grid;gap:10px;justify-items:center"><span>Aún no hay productos. Crea el primero con “+ Nuevo producto” o carga la carta de Cervalina.</span>${S.loaded.p ? `<button class="btn primary" data-act="cargarCarta">Cargar carta e insumos de Cervalina</button>` : ''}</div>`}`;
 }
 
 /* ---------- Modal ---------- */
@@ -748,14 +789,15 @@ function modalProducto(id){
 }
 function pintarProducto(){
   const p = M.d;
-  const catsDisp = [...new Set(Object.values(S.productos).map(x => x.cat||'Otros').concat(CAT_ORDER))].sort(ordenCat);
+  const catsDisp = todasCats(); if (p.cat && !catsDisp.includes(p.cat)) catsDisp.push(p.cat);
   const insOpts = sel => Object.values(S.insumos).sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(i => `<option value="${esc(i.id)}" ${i.id===sel?'selected':''}>${esc(i.nombre)} (${esc(i.unidad)})</option>`).join('');
   const rec = Object.entries(p.receta||{});
   const tieneVR = (p.vars||[]).some(v => v.r);
   openModal(`<h2>${M.id?'Editar producto':'Nuevo producto'}</h2>
     <label class="field"><span class="lbl">Nombre</span><input id="f-nombre" value="${esc(p.nombre)}"></label>
     <div class="cols" style="grid-template-columns:1fr 1fr;gap:10px">
-      <label class="field"><span class="lbl">Categoría</span><input id="f-cat" list="dl-cats" value="${esc(p.cat)}"><datalist id="dl-cats">${catsDisp.map(c => `<option value="${esc(c)}">`).join('')}</datalist></label>
+      <div class="field"><label class="lbl" for="f-cat">Categoría</label><select id="f-cat">${catsDisp.map(c => `<option ${c===p.cat?'selected':''}>${esc(c)}</option>`).join('')}<option value="__nueva" ${catsDisp.length?'':'selected'}>+ Nueva categoría…</option></select>
+        <input id="f-catnueva" placeholder="Nombre de la nueva categoría" aria-label="Nombre de la nueva categoría" ${catsDisp.length?'hidden':''}></div>
       <label class="field"><span class="lbl">Se prepara en</span><select id="f-area"><option value="cocina" ${p.area!=='barra'?'selected':''}>Cocina</option><option value="barra" ${p.area==='barra'?'selected':''}>Barra</option></select></label>
       <label class="field"><span class="lbl">Precio${p.vars&&p.vars.length?' (no se usa con tamaños)':''}</span><input id="f-precio" type="number" inputmode="decimal" step="any" value="${p.precio||0}"></label>
       <label class="field"><span class="lbl">Picor (0 a 5, opcional)</span><input id="f-picor" type="number" min="0" max="5" value="${p.picor??''}"></label>
@@ -774,7 +816,7 @@ function pintarProducto(){
 }
 function leerProducto(){
   const p = M.d, sh = $('#sheet');
-  p.nombre = $('#f-nombre').value.trim(); p.cat = $('#f-cat').value.trim() || 'Otros'; p.area = $('#f-area').value;
+  p.nombre = $('#f-nombre').value.trim(); const sc = $('#f-cat').value; p.cat = (sc==='__nueva' ? $('#f-catnueva').value.trim() : sc) || 'Otros'; p.area = $('#f-area').value;
   p.precio = parseFloat($('#f-precio').value) || 0; p.desc = $('#f-desc').value.trim(); p.activo = $('#f-activo').checked;
   const pic = $('#f-picor').value; if (pic==='') delete p.picor; else p.picor = Math.max(0, Math.min(5, parseInt(pic)||0));
   p.vars = [...sh.querySelectorAll('.vrow')].map(row => {
@@ -978,7 +1020,36 @@ const ACTS = {
     if (M.armado !== 'ins'){ M.armado = 'ins'; const b = document.querySelector('[data-act="insBorrar"]'); b.classList.add('armed'); b.textContent = 'Confirmar eliminación'; return; }
     const id = M.id; closeModal(); enqueue('insumos/'+id, () => S.db.doc('insumos/'+id).delete()).then(() => toast('Insumo eliminado'));
   },
-  prodEditar: d => { if (puede()) modalProducto(d.id || null); },
+  prodEditar: d => { if (!puede()) return; if (d.cat) S.cat = d.cat; modalProducto(d.id || null); },
+  categorias: () => { if (puede()) modalCategorias(); },
+  catAgregar: () => {
+    const n = $('#f-catalta').value.trim(); if (!n){ toast('Escribe el nombre de la categoría.','bad'); return; }
+    const L = todasCats(); if (L.some(x => x.toLowerCase()===n.toLowerCase())){ toast('Esa categoría ya existe.','bad'); return; }
+    L.push(n); guardarCats(L).then(r => { if (r!==false) toast('Categoría agregada'); }); pintarCategorias();
+  },
+  catMover: d => { const L = todasCats(), i = +d.ix, j = i + (+d.d); if (j<0 || j>=L.length) return; [L[i], L[j]] = [L[j], L[i]]; guardarCats(L); pintarCategorias(); },
+  catRenombrar: d => { M.editando = d.c; M.borrando = null; pintarCategorias(); const i = $('#f-catren'); if (i){ i.focus(); i.select(); } },
+  catBorrar: d => { M.borrando = d.c; M.editando = null; pintarCategorias(); },
+  catCancelar: () => { M.editando = null; M.borrando = null; pintarCategorias(); },
+  catRenombrarOk: d => {
+    const viejo = d.c, nuevo = $('#f-catren').value.trim();
+    if (!nuevo){ toast('Escribe el nuevo nombre.','bad'); return; }
+    if (nuevo!==viejo){
+      const L = todasCats(), existe = L.some(x => x===nuevo);
+      guardarCats(existe ? L.filter(x => x!==viejo) : L.map(x => x===viejo ? nuevo : x));
+      moverProductos(viejo, nuevo);
+      if (S.cat===viejo){ S.cat = nuevo; ls.set('cv.cat', nuevo); }
+      toast(existe ? `Se unió con “${nuevo}”` : 'Categoría renombrada');
+    }
+    M.editando = null; pintarCategorias(); render();
+  },
+  catBorrarOk: d => {
+    const c = d.c, n = nProdCat(c), dest = $('#f-catdest') ? $('#f-catdest').value : null;
+    if (n && !dest) return;
+    if (n) moverProductos(c, dest);
+    guardarCats(todasCats().filter(x => x!==c));
+    M.borrando = null; toast(n ? `Categoría eliminada; sus productos pasaron a “${dest}”` : 'Categoría eliminada'); pintarCategorias(); render();
+  },
   prodToggle: d => { if (!puede()) return; const p = S.productos[d.id]; if (!p) return; enqueue('productos/'+d.id, () => S.db.doc('productos/'+d.id).update({activo: p.activo===false})); },
   agregarVar: () => { leerProducto(); M.d.vars.push({n:'', p:0, m:1}); pintarProducto(); },
   quitarVar: d => { leerProducto(); M.d.vars.splice(+d.ix, 1); pintarProducto(); },
@@ -990,6 +1061,7 @@ const ACTS = {
     p.vars = p.vars.filter(v => v.n);
     const id = M.id || p.nombre.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40) + '-' + uid().slice(0,3);
     delete p.id; if (p.orden==null) p.orden = 500;
+    const Lc = todasCats(); if (!Lc.includes(p.cat)){ Lc.push(p.cat); guardarCats(Lc); }
     closeModal();
     enqueue('productos/'+id, () => S.db.doc('productos/'+id).set(p)).then(() => toast('Producto guardado'));
   },
@@ -1099,7 +1171,10 @@ document.addEventListener('input', e => {
   else if (t.classList.contains('p-monto')){ M.pagos[+t.dataset.ix].monto = parseFloat(t.value)||0; balancear(+t.dataset.ix); actualizarCambio(); }
   else if (t.classList.contains('p-ref')){ M.pagos[+t.dataset.ix].ref = t.value; }
 });
-document.addEventListener('change', e => { if (e.target.id==='f-dia' && e.target.value){ S.ventasDia = e.target.value; subVentas(); render(); } });
+document.addEventListener('change', e => {
+  if (e.target.id==='f-dia' && e.target.value){ S.ventasDia = e.target.value; subVentas(); render(); }
+  if (e.target.id==='f-cat'){ const i = $('#f-catnueva'); i.hidden = e.target.value!=='__nueva'; if (!i.hidden) i.focus(); }
+});
 document.addEventListener('submit', e => {
   if (e.target.id!=='f-login') return;
   e.preventDefault();
@@ -1235,6 +1310,7 @@ function arrancar(db){
   const META = {includeMetadataChanges:true};
   db.collection('productos').onSnapshot(META, s => { const o = {}; s.docs.forEach(d => o[d.id] = {id:d.id, ...d.data()}); S.productos = o; listo('p', s); render(); }, fallo);
   db.collection('insumos').onSnapshot(META, s => { const o = {}; s.docs.forEach(d => o[d.id] = {id:d.id, ...d.data()}); S.insumos = o; listo('i', s); render(); }, fallo);
+  subCategorias(db);
   db.collection('pedidos').where('abierto','==',true).onSnapshot(META, s => {
     S.abiertos = s.docs.map(d => { const x = d.data(); return {id:d.id, ...x, items: Array.isArray(x.items) ? x.items : []}; });
     listo('a', s); render();
