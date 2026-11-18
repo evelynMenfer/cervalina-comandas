@@ -441,7 +441,7 @@ body{margin:0}
 <script src="vendor/firebase-app-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-auth-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-firestore-compat.js?v=10.12.2"></script>
-<script src="config.js?v=202611182342"></script>
+<script src="config.js?v=202611182351"></script>
 <script>
 // En Netlify (plan gratuito) aparece su aviso flotante abajo a la derecha. En celular se deja una franja libre
 // para que el aviso no tape botones de la app.
@@ -599,7 +599,19 @@ function modalMerma(iid){
 const nivel = ins => (ins.stock||0) <= 0 ? 'agotado' : (ins.stock||0) <= (ins.minimo||0) ? 'bajo' : 'ok';
 
 /* ---------- Acciones de comandas ---------- */
-function crearCuentaCon(mesa){
+function preguntarOtraCuenta(mesa, cs){
+  M = {mesaOtra: mesa};
+  openModal(`<span class="lbl">Mesa ocupada</span><h2>${esc(mesa)} ya tiene ${cs.length===1 ? 'una cuenta abierta' : cs.length+' cuentas abiertas'}</h2>
+    <p class="hint" style="margin:0">Toca la cuenta para ir a ella, o abre otra cuenta para esta mesa si van a pagar por separado.</p>
+    <div class="rows">${cs.map(c => { const n = c.items.reduce((t,i) => t+i.qty, 0); return `<button class="cuenta" data-act="irACuenta" data-id="${c.id}">
+      <div class="row"><strong>${esc(c.mesa)}</strong><span class="num">${money(c.total)}</span></div>
+      <div class="row"><small>${n} ${n===1?'producto':'productos'} · abierta hace ${mins(c.creado)} min${c.mesero?' · '+esc(c.mesero):''}</small></div>
+      <div>${estadoCuenta(c)}</div></button>`; }).join('')}</div>
+    <div class="mact"><button class="btn spacer" data-act="cerrar">Cancelar</button><button class="btn" data-act="otraCuentaOk">Abrir otra cuenta para ${esc(mesa)}</button></div>`);
+}
+function crearCuentaCon(mesa, forzar){
+    const existentes = S.abiertos.filter(c => c.mesa===mesa);
+    if (existentes.length && !forzar){ preguntarOtraCuenta(mesa, existentes); return; }
     const ref = S.db.collection('pedidos').doc();
     S.cuentaSel = ref.id; ls.set('cv.cuenta', ref.id);
     const add = S.pendingAdd; S.pendingAdd = null;
@@ -722,7 +734,7 @@ function vMesas(){
     const cs = abiertas.filter(c => c.mesa===m);
     if (!cs.length) libres.push(`<button class="mesa-t libre" data-act="abrirMesa" data-m="${esc(m)}"><b>${esc(m)}</b><span class="mt-est">Libre</span></button>`);
     cs.forEach((c,ix) => ocup.push(tileCuenta(c, cs.length>1 ? ` (${ix+1})` : '')));
-    if (cs.length && !/^mesa\b/i.test(m)) libres.push(`<button class="mesa-t libre mas" data-act="abrirMesa" data-m="${esc(m)}"><b>+ ${esc(m)}</b><span class="mt-est">Otra cuenta</span></button>`);
+    if (cs.length && !/^mesa\b/i.test(m)) libres.push(`<button class="mesa-t libre mas" data-act="abrirOtra" data-m="${esc(m)}"><b>+ ${esc(m)}</b><span class="mt-est">Otra cuenta</span></button>`);
   });
   abiertas.filter(c => !L.includes(c.mesa)).forEach(c => ocup.push(tileCuenta(c, '')));
   const total = abiertas.reduce((t,c) => t+(c.total||0), 0);
@@ -1227,6 +1239,9 @@ const ACTS = {
     crearCuentaCon(mesa);
   },
   abrirMesa: d => { if (puede()) crearCuentaCon(d.m); },
+  abrirOtra: d => { if (puede()) crearCuentaCon(d.m, true); },
+  otraCuentaOk: () => { const m = M.mesaOtra; if (m && puede()) crearCuentaCon(m, true); },
+  irACuenta: d => { S.pendingAdd = null; closeModal(); S.view = 'comandas'; ACTS.verMesa({id:d.id}); },
   irMesas: () => {
     const c = S.abiertos.find(x => x.id===S.cuentaSel) || cuentaNueva(S.cuentaSel);
     if (c && !c.items.length) enqueue('pedidos/'+c.id, () => S.db.doc('pedidos/'+c.id).delete());
