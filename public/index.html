@@ -363,20 +363,62 @@ function descontarPendientes(items){
   if (por.length) descontar(por);
   por.forEach(i => { i.inv = 'ok'; });
 }
-function descontar(items){
+function consumoDe(items){
   const tot = {};
   for (const it of items){
     const p = S.productos[it.pid]; if (!p) continue;
     const {r,m} = recetaDe(p, it.vn);
-    for (const [iid,q] of Object.entries(r)) tot[iid] = (tot[iid]||0) + (+q||0)*m*it.qty;
+    for (const [iid,q] of Object.entries(r)) if (+q) tot[iid] = r3((tot[iid]||0) + (+q)*m*it.qty);
   }
+  return tot;
+}
+function aplicarConsumo(tot, signo){
   for (const [iid,q] of Object.entries(tot)){
     if (!q) continue;
     enqueue('insumos/'+iid, () => {
       const ins = S.insumos[iid]; if (!ins) return;
-      return S.db.doc('insumos/'+iid).update({stock: r3((ins.stock||0) - q)});
+      return S.db.doc('insumos/'+iid).update({stock: r3((ins.stock||0) + signo*q)});
     });
   }
+}
+function descontar(items){ aplicarConsumo(consumoDe(items), -1); }
+const costoDe = tot => r2(Object.entries(tot).reduce((s,[iid,q]) => s + q*((S.insumos[iid] && +S.insumos[iid].costo) || 0), 0));
+
+/* ---------- Mermas ---------- */
+const MOTIVOS_MERMA = ['Se cayó','Se quemó','Caducó','Mal estado','Error de preparación','Pedido cancelado','Cortesía'];
+let unsubMermas = null;
+function subMermas(db){
+  if (unsubMermas) unsubMermas();
+  S.mermasDia = hoy(); S.mermas = [];
+  unsubMermas = db.collection('mermas').where('dia','==',S.mermasDia).onSnapshot(s => {
+    S.mermas = s.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => b.t-a.t); if (S.view==='insumos') render();
+  }, () => {});
+}
+function registrarMerma(consumo, desc, motivo, quien){
+  aplicarConsumo(consumo, -1);
+  const ref = S.db.collection('mermas').doc();
+  return enqueue('mermas/'+ref.id, () => ref.set({dia:hoy(), t:Date.now(), desc, consumo, motivo, quien:quien||'', costo:costoDe(consumo)}));
+}
+function preguntarMerma(items, motivo){
+  if (!items.length) return;
+  M = {mermaItems:items, motivo};
+  openModal(`<span class="lbl">Merma</span><h2>¿Ya se había preparado?</h2>
+    <p class="hint" style="margin:0">Si cocina o barra ya lo preparó, regístralo como merma para que salga del inventario. Si no se preparó, toca “No se preparó”.</p>
+    <div class="rows">${items.map((i,ix) => `<label class="chk"><input type="checkbox" class="m-it" data-ix="${ix}" checked> ${i.qty}× ${esc(i.nombre)}${i.vn?' · '+esc(i.vn):''}</label>`).join('')}</div>
+    <div class="mact"><button class="btn" data-act="cerrar">No se preparó</button><button class="btn danger armed" data-act="mermaProdOk">Registrar merma</button></div>`);
+}
+function modalMerma(iid){
+  const lista = Object.values(S.insumos).sort((a,b) => a.nombre.localeCompare(b.nombre));
+  if (!lista.length){ toast('Primero agrega insumos.','bad'); return; }
+  M = {};
+  openModal(`<span class="lbl">Merma</span><h2>Registrar merma</h2>
+    <p class="hint" style="margin:0">Producto que se desperdició y debe salir del inventario.</p>
+    <label class="field"><span class="lbl">Insumo</span><select id="f-mins">${lista.map(i => `<option value="${esc(i.id)}" ${i.id===iid?'selected':''}>${esc(i.nombre)} (${esc(i.unidad)}) · hay ${r3(i.stock||0)}</option>`).join('')}</select></label>
+    <label class="field"><span class="lbl">Cantidad</span><input id="f-mcant" type="number" inputmode="decimal" step="any" min="0"></label>
+    <div class="field"><span class="lbl">Motivo</span><div class="qchips">${MOTIVOS_MERMA.map(m => `<button data-act="motivoChip" data-m="${esc(m)}">${esc(m)}</button>`).join('')}</div>
+      <input id="f-mmotivo" class="mini" placeholder="Ej. Se quemó al freír"></div>
+    <label class="field"><span class="lbl">Quién la registra</span><input id="f-mquien" value="${esc(S.mesero)}" placeholder="Nombre"></label>
+    <div class="mact"><button class="btn" data-act="cerrar">Cancelar</button><button class="btn danger armed" data-act="mermaInsOk">Registrar merma</button></div>`);
 }
 const nivel = ins => (ins.stock||0) <= 0 ? 'agotado' : (ins.stock||0) <= (ins.minimo||0) ? 'bajo' : 'ok';
 
@@ -660,14 +702,19 @@ function vInsumos(){
   const pill = {ok:'<span class="pill p-ok">Suficiente</span>', bajo:'<span class="pill p-warn">Por agotarse</span>', agotado:'<span class="pill p-bad">Agotado</span>'};
   return `<div class="toolbar"><h2>Insumos</h2>
       <div class="seg"><button class="${S.soloBajos?'':'on'}" data-act="filtroIns" data-b="0">Todos (${lista.length})</button><button class="${S.soloBajos?'on':''}" data-act="filtroIns" data-b="1">Por surtir (${bajos+agot})</button></div>
-      <button class="btn primary" data-act="insNuevo">+ Nuevo insumo</button></div>
+      <button class="btn" data-act="mermaNueva">Registrar merma</button><button class="btn primary" data-act="insNuevo">+ Nuevo insumo</button></div>
     <p class="hint" style="margin:-6px 0 14px">El inventario se descuenta solo cuando un producto se entrega o se cobra, según su receta en Menú. Lo que se quita de una cuenta o se cancela antes de entregarse no se descuenta.</p>
     ${ver.length ? `<div class="card tw"><table><thead><tr><th>Insumo</th><th class="r">Existencia</th><th class="r">Mínimo</th><th>Estado</th><th class="r">Acciones</th></tr></thead><tbody>
       ${ver.map(i => `<tr><td><strong>${esc(i.nombre)}</strong>${i.costo?`<br><small class="hint">${money(i.costo)} por ${esc(i.unidad)}</small>`:''}</td>
         <td class="r"><span class="stock num">${r3(i.stock||0)}</span> <small class="hint">${esc(i.unidad)}</small></td>
         <td class="r num">${r3(i.minimo||0)}</td><td>${pill[nivel(i)]}</td>
-        <td><div class="rowacts"><button class="btn sm olive" data-act="insEntrada" data-id="${esc(i.id)}">+ Entrada</button><button class="btn sm" data-act="insAjuste" data-id="${esc(i.id)}">Conteo</button><button class="btn sm ghost" data-act="insEditar" data-id="${esc(i.id)}">Editar</button></div></td></tr>`).join('')}
-      </tbody></table></div>` : `<p class="empty">${S.soloBajos?'Todo está surtido.':'Aún no hay insumos. Agrega el primero con “+ Nuevo insumo”.'}</p>`}`;
+        <td><div class="rowacts"><button class="btn sm olive" data-act="insEntrada" data-id="${esc(i.id)}">+ Entrada</button><button class="btn sm" data-act="insAjuste" data-id="${esc(i.id)}">Conteo</button><button class="btn sm ghost" data-act="mermaNueva" data-id="${esc(i.id)}" style="color:var(--bad)">Merma</button><button class="btn sm ghost" data-act="insEditar" data-id="${esc(i.id)}">Editar</button></div></td></tr>`).join('')}
+      </tbody></table></div>` : `<p class="empty">${S.soloBajos?'Todo está surtido.':'Aún no hay insumos. Agrega el primero con “+ Nuevo insumo”.'}</p>`}
+    <div class="card sec"><div class="caja-head"><h3>Mermas de hoy</h3>${(S.mermas||[]).some(m => m.costo) ? `<span class="pill p-bad num">Costo estimado ${money((S.mermas||[]).reduce((s,m) => s+(m.costo||0), 0))}</span>` : ''}</div>
+      ${(S.mermas||[]).length ? `<div class="tw"><table><thead><tr><th>Hora</th><th>Qué se perdió</th><th>Motivo</th><th class="r">Costo</th><th></th></tr></thead><tbody>
+        ${S.mermas.map(m => `<tr><td class="num">${hora(m.t)}</td><td>${esc(m.desc)}${m.quien?`<br><small class="hint">${esc(m.quien)}</small>`:''}</td><td>${esc(m.motivo)}</td><td class="r num">${m.costo ? money(m.costo) : '<small class="hint">Sin costo</small>'}</td>
+          <td class="r"><button class="link bad" data-act="mermaDeshacer" data-id="${esc(m.id)}">${S.confirm==='mm:'+m.id ? '¿Deshacer? Toca otra vez' : 'Deshacer'}</button></td></tr>`).join('')}</tbody></table></div>`
+        : `<p class="hint" style="margin:0">Sin mermas hoy. Registra aquí lo que se desperdicie (se cayó, se quemó, caducó) para que el inventario cuadre. El costo se calcula con el costo por unidad de cada insumo.</p>`}</div>`;
 }
 
 /* ---------- Menú ---------- */
@@ -873,7 +920,9 @@ const ACTS = {
     const c = S.abiertos.find(x => x.id===S.cuentaSel); const it = c && c.items.find(i => i.k===d.k); if (!it || !puede()) return;
     if (it.est!=='nuevo' && S.confirm!=='q:'+d.k){ S.confirm = 'q:'+d.k; render(); return; }
     S.confirm = null;
+    const preparado = (it.est==='cocina' || it.est==='listo') && it.inv==='pend';
     mutPedido(c.id, p => { p.items = p.items.filter(i => i.k!==d.k); return {items:p.items, total:totalDe(p.items)}; });
+    if (preparado) preguntarMerma([it], 'Se quitó de la cuenta');
   },
   nota: d => modalNota(d.k),
   notaChip: d => { const t = $('#f-nota'); t.value = t.value.trim() ? t.value.trim()+', '+d.n : d.n; },
@@ -890,6 +939,32 @@ const ACTS = {
   pagoDirecto: () => { if (puede()) modalCobrar(S.cuentaSel); },
   irAPago: () => { const id = M.id; closeModal(); modalCobrar(id); },
   verTicketPagado: () => { const p = M.pagado; closeModal(); if (p) modalTicket(p, false); },
+  mermaNueva: d => { if (puede()) modalMerma(d.id || null); },
+  motivoChip: d => { $('#f-mmotivo').value = d.m; },
+  mermaInsOk: () => {
+    const iid = $('#f-mins').value, q = parseFloat($('#f-mcant').value), ins = S.insumos[iid];
+    if (!ins || !(q>0)){ toast('Escribe una cantidad mayor a cero.','bad'); return; }
+    const motivo = $('#f-mmotivo').value.trim(); if (!motivo){ toast('Elige o escribe el motivo.','bad'); return; }
+    const quien = $('#f-mquien').value.trim(); if (quien){ S.mesero = quien; ls.set('cv.mesero', quien); }
+    closeModal();
+    registrarMerma({[iid]: r3(q)}, `${r3(q)} ${ins.unidad} de ${ins.nombre}`, motivo, quien).then(r => { if (r!==false) toast('Merma registrada'); });
+  },
+  mermaProdOk: () => {
+    const sel = [...document.querySelectorAll('.m-it')].filter(c => c.checked).map(c => M.mermaItems[+c.dataset.ix]);
+    const motivo = M.motivo; closeModal();
+    if (!sel.length || !puede()) return;
+    const consumo = consumoDe(sel);
+    const desc = sel.map(i => `${i.qty}× ${i.nombre}${i.vn?' · '+i.vn:''}`).join(', ');
+    if (!Object.keys(consumo).length){ toast('Esos productos no tienen receta; no hay insumos que descontar.','bad'); return; }
+    registrarMerma(consumo, desc, motivo, S.mesero).then(r => { if (r!==false) toast('Merma registrada'); });
+  },
+  mermaDeshacer: d => {
+    const m = S.mermas.find(x => x.id===d.id); if (!m || !puede()) return;
+    if (S.confirm!=='mm:'+d.id){ S.confirm = 'mm:'+d.id; render(); return; }
+    S.confirm = null;
+    aplicarConsumo(m.consumo || {}, +1);
+    enqueue('mermas/'+m.id, () => S.db.doc('mermas/'+m.id).delete()).then(r => { if (r!==false) toast('Merma deshecha; los insumos regresaron al inventario'); });
+  },
   ajustes: () => modalAjustes(),
   impConectar: () => { conectarImpresora().then(() => { toast('Impresora conectada'); modalAjustes(); }).catch(e => { if (e && e.name==='NotFoundError') return; toast('No se pudo conectar: ' + (e.message||e), 'bad'); }); },
   impDesconectar: () => { if (IMP.dev && IMP.dev.gatt.connected) IMP.dev.gatt.disconnect(); IMP.dev = null; IMP.ch = null; IMP.estado = 'desconectada'; IMP.nombre = ''; ls.set('cv.imp',''); render(); modalAjustes(); },
@@ -1005,6 +1080,7 @@ const ACTS = {
     if (!c.items.length) enqueue('pedidos/'+c.id, () => S.db.doc('pedidos/'+c.id).delete());
     else mutPedido(c.id, () => ({abierto:false, estado:'cancelada', cancelado:Date.now()}));
     toast('Cuenta cancelada'); render();
+    preguntarMerma(c.items.filter(i => (i.est==='cocina' || i.est==='listo') && i.inv==='pend'), 'Cuenta cancelada');
   },
   area: d => { S.area = d.a; ls.set('cv.area', d.a); render(); },
   itemListo: d => { if (!puede()) return; mutPedido(d.p, p => { const it = p.items.find(i => i.k===d.k); if (!it) return; it.est = it.est==='cocina' ? 'listo' : 'cocina'; return {items:p.items}; }); },
@@ -1325,6 +1401,7 @@ function arrancar(db){
   db.collection('productos').onSnapshot(META, s => { const o = {}; s.docs.forEach(d => o[d.id] = {id:d.id, ...d.data()}); S.productos = o; listo('p', s); render(); }, fallo);
   db.collection('insumos').onSnapshot(META, s => { const o = {}; s.docs.forEach(d => o[d.id] = {id:d.id, ...d.data()}); S.insumos = o; listo('i', s); render(); }, fallo);
   subCategorias(db);
+  subMermas(db);
   db.collection('pedidos').where('abierto','==',true).onSnapshot(META, s => {
     S.abiertos = s.docs.map(d => { const x = d.data(); return {id:d.id, ...x, items: Array.isArray(x.items) ? x.items : []}; });
     listo('a', s); render();
@@ -1425,7 +1502,7 @@ async function cargarCarta(){
     await batch.commit(); toast('Carta e insumos cargados');
   } catch (e) { toast('No se pudo cargar la carta: ' + (e.message||e), 'bad'); }
 }
-function tick(){ $('#clock').textContent = new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}); }
+function tick(){ $('#clock').textContent = new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}); if (S.db && S.mermasDia && S.mermasDia!==hoy()) subMermas(S.db); }
 tick(); setInterval(() => { tick(); render(); }, 30000);
 init();
 </script>
