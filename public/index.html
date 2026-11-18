@@ -100,6 +100,24 @@ h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:10px}
 .prod{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px 12px 10px;display:flex;flex-direction:column;gap:6px;min-height:118px;position:relative}
 .prod:active{transform:scale(.98)}
+.prod{cursor:pointer}
+.prod.sel{border:2px solid var(--olive);background:var(--olive-soft);padding:11px 11px 9px}
+.prod.sel h4{padding-right:34px}
+.prod .qb{position:absolute;top:8px;right:8px;min-width:28px;height:28px;padding:0 7px;border-radius:14px;background:var(--olive);color:var(--paper);font-weight:800;font-size:15px;display:grid;place-items:center}
+.prod .env{font-size:12px;font-weight:700;color:var(--lav)}
+.pq{display:flex;align-items:center;justify-content:space-between;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px}
+.prod .pq{width:100%}
+.pq button{width:42px;height:40px;border:0;border-radius:9px;background:var(--surface-2);color:var(--ink);font-size:22px;font-weight:800;line-height:1}
+.pq button:disabled{opacity:.35;cursor:default}
+.pq b{min-width:28px;text-align:center;font-size:17px}
+.vrows{display:grid;gap:8px}
+.vsel{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:6px 8px 6px 0;background:var(--paper)}
+.vsel.on{border:2px solid var(--olive);background:var(--olive-soft)}
+.vsel-add{flex:1;min-width:0;display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 10px;text-align:left;border:0;background:none;padding:10px 12px;min-height:56px}
+.vsel-add span{font-weight:700;font-size:16px}
+.vsel-add b{font:800 18px var(--display)}
+.vsel-add small{grid-column:1/-1;color:var(--lav);font-weight:700}
+.vsel .pq{flex:none}
 .prod h4{margin:0;font:700 15px/1.2 var(--body);text-transform:uppercase;letter-spacing:.02em}
 .prod p{margin:0;font-size:12.5px;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .prod .foot{margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:6px}
@@ -423,7 +441,7 @@ body{margin:0}
 <script src="vendor/firebase-app-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-auth-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-firestore-compat.js?v=10.12.2"></script>
-<script src="config.js?v=202611182333"></script>
+<script src="config.js?v=202611182342"></script>
 <script>
 // En Netlify (plan gratuito) aparece su aviso flotante abajo a la derecha. En celular se deja una franja libre
 // para que el aviso no tape botones de la app.
@@ -669,6 +687,7 @@ function render(){
   const vistas = {comandas:vComandas, cocina:vCocina, caja:vCaja, insumos:vInsumos, menu:vMenu};
   const html = (vistas[S.view] || vComandas)();
   setHTML($('#view'), ['caja','insumos'].includes(S.view) ? `<div class="page">${html}</div>` : html);
+  if (M && M.varsPid && !$('#modal').hidden) pintarVars();
 }
 
 function puntoCuenta(p){
@@ -754,9 +773,26 @@ function cardProd(p){
   if (disp<=0) chip = `<span class="pill p-bad">Agotado</span>`;
   else if (disp<=5) chip = `<span class="pill p-warn">Quedan ${disp}</span>`;
   const picor = p.picor!=null && p.picor!=='' ? `<span class="picor" title="Picor ${p.picor} de 5">${[1,2,3,4,5].map(n => `<i class="${n<=p.picor?'on':''}"></i>`).join('')}</span>` : '';
-  return `<button class="prod ${disp<=0?'agotado':''}" data-act="prod" data-id="${esc(p.id)}">
-    <h4>${esc(p.nombre)}</h4>${p.desc?`<p>${esc(p.desc)}</p>`:''}${picor}
-    <div class="foot"><span class="precio">${vars?'<small style="font:500 12px var(--body)">desde </small>':''}${money(precio)}</span>${chip}</div></button>`;
+  const q = enCuenta(p.id, null), id = esc(p.id);
+  const sel = q.nuevo > 0;
+  const controles = !vars && sel ? `<div class="pq"><button data-act="pmenos" data-id="${id}" aria-label="Quitar uno de ${esc(p.nombre)}">−</button><b class="num">${q.nuevo}</b><button data-act="pmas" data-id="${id}" aria-label="Agregar uno de ${esc(p.nombre)}">+</button></div>` : '';
+  return `<div class="prod ${disp<=0?'agotado':''} ${sel?'sel':''}" role="button" tabindex="0" data-act="prod" data-id="${id}" aria-label="Agregar ${esc(p.nombre)}">
+    ${sel ? `<span class="qb num" aria-label="${q.nuevo} en la cuenta">${q.nuevo}</span>` : ''}
+    <h4>${esc(p.nombre)}</h4>${p.desc && !sel ?`<p>${esc(p.desc)}</p>`:''}${picor}
+    ${q.env ? `<span class="env">${q.env} ya ${q.env===1?'enviado':'enviados'}</span>` : ''}
+    <div class="foot"><span class="precio">${vars?'<small style="font:500 12px var(--body)">desde </small>':''}${money(precio)}</span>${chip}${vars && sel ? '<span class="pill p-pago">Elegir</span>' : ''}</div>
+    ${controles}</div>`;
+}
+function cuentaActual(){ return S.abiertos.find(x => x.id===S.cuentaSel) || cuentaNueva(S.cuentaSel); }
+function enCuenta(pid, vn){
+  const c = cuentaActual(), r = {nuevo:0, env:0}; if (!c) return r;
+  c.items.forEach(i => { if (i.pid!==pid || (vn!=null && (i.vn||'')!==vn)) return; if (i.est==='nuevo') r.nuevo += i.qty; else r.env += i.qty; });
+  return r;
+}
+function quitarUno(pid, vn){
+  const c = cuentaActual(); if (!c) return;
+  const ls = c.items.filter(i => i.pid===pid && (i.vn||'')===(vn||'') && i.est==='nuevo'); if (!ls.length) return;
+  cambiarQty((ls.find(i => !i.nota) || ls[ls.length-1]).k, -1);
 }
 function ticketHTML(c){
   const nuevos = c.items.filter(i => i.est==='nuevo').reduce((s,i) => s+i.qty, 0);
@@ -1022,10 +1058,17 @@ function modalNuevaCuenta(){
     <label class="field"><span class="lbl">Mesero</span><input id="f-mesero" value="${esc(S.mesero)}" placeholder="Tu nombre"></label>
     <div class="mact"><button class="btn" data-act="cerrar">Cancelar</button><button class="btn primary" data-act="crearCuenta">Abrir cuenta</button></div>`);
 }
-function modalVars(p){
-  openModal(`<h2>${esc(p.nombre)}</h2>${p.desc?`<p class="hint">${esc(p.desc)}</p>`:''}
-    <div class="vars">${p.vars.map(v => `<button data-act="var" data-id="${esc(p.id)}" data-vn="${esc(v.n)}"><span>${esc(v.n)}</span><b class="num">${money(v.p)}</b></button>`).join('')}</div>
-    <div class="mact"><button class="btn" data-act="cerrar">Cancelar</button></div>`);
+function modalVars(p){ M = {varsPid:p.id}; pintarVars(); }
+function pintarVars(){
+  const p = S.productos[M.varsPid]; if (!p) return;
+  const id = esc(p.id);
+  openModal(`<h2>${esc(p.nombre)}</h2>
+    <p class="hint" style="margin:0">Toca una opción para agregarla. Usa − y + para ajustar cuántas.</p>
+    <div class="vrows">${p.vars.map(v => { const q = enCuenta(p.id, v.n), vn = esc(v.n); return `<div class="vsel ${q.nuevo?'on':''}">
+        <button class="vsel-add" data-act="vmas" data-id="${id}" data-vn="${vn}"><span>${vn}</span><b class="num">${money(v.p)}</b>${q.env ? `<small>${q.env} ya ${q.env===1?'enviado':'enviados'}</small>` : ''}</button>
+        <div class="pq"><button data-act="vmenos" data-id="${id}" data-vn="${vn}" ${q.nuevo?'':'disabled'} aria-label="Quitar uno de ${vn}">−</button><b class="num">${q.nuevo}</b><button data-act="vmas" data-id="${id}" data-vn="${vn}" aria-label="Agregar uno de ${vn}">+</button></div>
+      </div>`; }).join('')}</div>
+    <div class="mact"><button class="btn primary" data-act="cerrar">Listo</button></div>`);
 }
 function modalNota(k){
   const c = S.abiertos.find(x => x.id===S.cuentaSel); const it = c && c.items.find(i => i.k===k); if (!it) return;
@@ -1212,6 +1255,10 @@ const ACTS = {
   },
   prod: d => { const p = S.productos[d.id]; if (!p) return; if (p.vars && p.vars.length) modalVars(p); else agregar(p.id, ''); },
   var: d => { closeModal(); agregar(d.id, d.vn); },
+  pmas: d => agregar(d.id, ''),
+  pmenos: d => quitarUno(d.id, ''),
+  vmas: d => agregar(d.id, d.vn),
+  vmenos: d => quitarUno(d.id, d.vn),
   mas: d => cambiarQty(d.k, 1),
   menos: d => cambiarQty(d.k, -1),
   quitar: d => {
