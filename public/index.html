@@ -302,10 +302,10 @@ body{margin:0}
 <div id="modal" hidden><div class="scrim" data-act="cerrar"></div><div class="sheet" role="dialog" aria-modal="true" id="sheet"></div></div>
 <div id="toast"></div>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="config.js"></script>
+<script src="vendor/firebase-app-compat.js?v=10.12.2"></script>
+<script src="vendor/firebase-auth-compat.js?v=10.12.2"></script>
+<script src="vendor/firebase-firestore-compat.js?v=10.12.2"></script>
+<script src="config.js?v=202611182226"></script>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -499,12 +499,13 @@ function render(){
   setHTML($('#tabs'), tabs.map(([v,l,b]) => `<button class="tab ${S.view===v?'on':''}" data-act="tab" data-v="${v}">${l}${b?`<span class="badge ${v==='insumos'?'bad':''}">${b}</span>`:''}</button>`).join(''));
   const dot = $('#dot'), est = $('#estado');
   const st = ({cargando:['','Conectando…'], lento:['bad','Sin respuesta de la base de datos'], ok:['ok','En línea'], error:['bad','Conexión perdida'],
-    offline:['bad','Sin internet · se guarda y se envía al volver'], login:['','Inicia sesión'], 'sin-config':['bad','Falta configurar']})[S.estado] || ['',''];
+    offline:['bad','Sin internet · se guarda y se envía al volver'], login:['','Inicia sesión'], 'sin-config':['bad','Falta configurar'], 'sin-firebase':['bad','No cargó']})[S.estado] || ['',''];
   const ib = $('#impbtn');
-  ib.hidden = S.estado==='login' || S.estado==='sin-config';
+  ib.hidden = S.estado==='login' || S.estado==='sin-config' || S.estado==='sin-firebase';
   ib.innerHTML = `<span class="dot ${IMP.estado==='conectada'?'ok':IMP.estado==='conectando'?'':'bad'}"></span>${IMP.estado==='conectada' ? esc(IMP.nombre||'Impresora') : IMP.estado==='conectando' ? 'Conectando…' : 'Conectar impresora'}`;
   dot.className = 'dot ' + st[0]; est.textContent = st[1];
-  if (S.estado==='sin-config'){ setHTML($('#view'), `<div class="notice"><h2>Falta conectar Firebase</h2><p>Pega la configuración de tu proyecto de Firebase en el archivo <b>config.js</b> y vuelve a publicar la app. Los pasos están en la guía.</p></div>`); return; }
+  if (S.estado==='sin-firebase'){ setHTML($('#view'), `<div class="notice"><h2>No se pudo cargar la app</h2><p>Parece que la conexión se interrumpió mientras abría. Revisa que haya internet y vuelve a intentar.</p><button class="btn primary" data-act="recargar">Reintentar</button></div>`); return; }
+  if (S.estado==='sin-config'){ setHTML($('#view'), `<div class="notice"><h2>Falta la configuración</h2><p>Este dispositivo tiene guardada una versión vieja de la app. Toca “Reintentar”; si sigue igual, borra los datos del sitio en Chrome (candado junto a la dirección → Configuración del sitio → Borrar datos).</p><button class="btn primary" data-act="recargar">Reintentar</button></div>`); return; }
   if (S.estado==='login'){ setHTML($('#view'), `<form class="notice" id="f-login"><h2>Iniciar sesión</h2><p class="hint" style="margin:0">Usa la cuenta del negocio. La tablet recordará la sesión.</p>
     <label class="field"><span class="lbl">Correo</span><input id="f-email" type="email" autocomplete="username" required></label>
     <label class="field"><span class="lbl">Contraseña</span><input id="f-pass" type="password" autocomplete="current-password" required></label>
@@ -1031,6 +1032,7 @@ const ACTS = {
     enqueue('mermas/'+m.id, () => S.db.doc('mermas/'+m.id).delete()).then(r => { if (r!==false) toast('Merma deshecha; los insumos regresaron al inventario'); });
   },
   ajustes: () => modalAjustes(),
+  recargar: () => location.reload(),
   impConectar: () => { conectarImpresora().then(() => { toast('Impresora conectada'); modalAjustes(); }).catch(e => { if (e && e.name==='NotFoundError') return; toast('No se pudo conectar: ' + (e.message||e), 'bad'); }); },
   impDesconectar: () => { if (IMP.dev && IMP.dev.gatt.connected) IMP.dev.gatt.disconnect(); IMP.dev = null; IMP.ch = null; IMP.estado = 'desconectada'; IMP.nombre = ''; ls.set('cv.imp',''); render(); modalAjustes(); },
   impPrueba: () => imprimir(['CERVALINA','       Prueba de impresión','--------------------------------','Acentos: á é í ó ú ñ ¿ ¡','12345678901234567890123456789012','--------------------------------','TOTAL                       $123']),
@@ -1442,7 +1444,8 @@ function lineasCorte(){
 async function init(){
   render();
   const cfg = window.FIREBASE_CONFIG;
-  if (!window.firebase || !cfg || !cfg.apiKey){ S.estado = 'sin-config'; render(); return; }
+  if (!window.firebase){ S.estado = 'sin-firebase'; render(); return; }
+  if (!cfg || !cfg.apiKey){ S.estado = 'sin-config'; render(); return; }
   firebase.initializeApp(cfg);
   const fs = firebase.firestore();
   try { await fs.enablePersistence({synchronizeTabs:true}); } catch {}
