@@ -1,0 +1,689 @@
+{
+ "productos": {
+  "agua-mineral": {
+   "activo": true,
+   "area": "barra",
+   "cat": "Sin alcohol",
+   "desc": "",
+   "nombre": "Agua mineral",
+   "orden": 1,
+   "precio": 25,
+   "receta": {
+    "agua-mineral": 1
+   },
+   "vars": []
+  },
+  "alitas-bbq": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Alitas",
+   "desc": "Pollo frito con marinado de la casa, aderezo ranch y bastones de pepino y zanahoria.",
+   "nombre": "Alitas BBQ",
+   "orden": 1,
+   "picor": 1,
+   "precio": 75,
+   "receta": {
+    "alitas": 4
+   },
+   "vars": [
+    {
+     "m": 1,
+     "n": "4 piezas",
+     "p": 75
+    },
+    {
+     "m": 2,
+     "n": "8 piezas (2 salsas)",
+     "p": 140
+    },
+    {
+     "m": 4,
+     "n": "16 piezas (3 salsas)",
+     "p": 256
+    }
+   ]
+  },
+  "alitas-bufalo": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Alitas",
+   "desc": "Pollo frito con marinado de la casa, aderezo ranch y bastones de pepino y zanahoria.",
+   "nombre": "Alitas Búfalo",
+   "orden": 2,
+   "picor": 3,
+   "precio": 75,
+   "receta": {
+    "alitas": 4
+   },
+   "vars": [
+    {
+     "m": 1,
+     "n": "4 piezas",
+     "p": 75
+    },
+    {
+     "m": 2,
+     "n": "8 piezas (2 salsas)",
+     "p": 140
+    },
+    {
+     "m": 4,
+     "n": "16 piezas (3 salsas)",
+     "p": 256
+    }
+   ]
+  },
+  "alitas-cervalina": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Alitas",
+   "desc": "Pollo frito con marinado de la casa, aderezo ranch y bastones de pepino y zanahoria.",
+   "nombre": "Alitas Cervalina",
+   "orden": 5,
+   "picor": 5,
+   "precio": 80,
+   "receta": {
+    "alitas": 4
+   },
+   "vars": [
+    {
+     "m": 1,
+     "n": "4 piezas",
+     "p": 80
+    },
+    {
+     "m": 2,
+     "n": "8 piezas (2 salsas)",
+     "p": 145
+    },
+    {
+     "m": 4,
+     "n": "16 piezas (3 salsas)",
+     "p": 260
+    }
+   ]
+  },
+  "alitas-mango": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Alitas",
+   "desc": "Pollo frito con marinado de la casa, aderezo ranch y bastones de pepino y zanahoria.",
+   "nombre": "Alitas Mango Habanero",
+   "orden": 4,
+   "picor": 2,
+   "precio": 70,
+   "receta": {
+    "alitas": 4
+   },
+   "vars": [
+    {
+     "m": 1,
+     "n": "4 piezas",
+     "p": 70
+    },
+    {
+     "m": 2,
+     "n": "8 piezas (2 salsas)",
+     "p": 135
+    },
+    {
+     "m": 4,
+     "n": "16 piezas (3 salsas)",
+     "p": 250
+    }
+   ]
+  },
+  "alitas-parmesano": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Alitas",
+   "desc": "Pollo frito con marinado de la casa, aderezo ranch y bastones de pepino y zanahoria.",
+   "nombre": "Alitas Parmesano",
+   "orden": 3,
+   "picor": 0,
+   "precio": 85,
+   "receta": {
+    "alitas": 4
+   },
+   "vars": [
+    {
+     "m": 1,
+     "n": "4 piezas",
+     "p": 85
+    },
+    {
+     "m": 2,
+     "n": "8 piezas (2 salsas)",
+     "p": 150
+    },
+    {
+     "m": 4,
+     "n": "16 piezas (3 salsas)",
+     "p": 270
+    }
+   ]
+  },
+  "base-clamato": {
+   "activo": true,
+   "area": "barra",
+   "cat": "Preparados",
+   "desc": "Se suma a la cerveza.",
+   "nombre": "Base clamato",
+   "orden": 4,
+   "precio": 35,
+   "receta": {
+    "clamato": 0.25
+   },
+   "vars": []
+  },
+  "base-cubana": {
+   "activo": true,
+   "area": "barra",
+   "cat": "Preparados",
+   "desc": "Se suma a la cerveza.",
+   "nombre": "Base cubana",
+   "orden": 2,
+   "precio": 25,
+   "receta": {},
+   "vars": []
+  },
+  "base-miche": {
+   "activo": true,
+   "area": "barra",
+   "cat": "Preparados",
+   "desc": "Se suma a la cerveza.",
+   "nombre": "Base miche",
+   "orden": 3,
+   "precio": 25,
+   "receta": {},
+   "vars": []
+  },
+  "base-suero": {
+   "activo": true,
+   "area": "barra",
+   "cat": "Preparados",
+   "desc": "Se suma a la cerveza.",
+   "nombre": "Base suero",
+   "orden": 1,
+   "precio": 20,
+   "receta": {},
+   "vars": []
+  },
+  "boneless": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Botanas",
+   "desc": "Pechuga de pollo empanizada bañada con salsa, con bastones de pepino y zanahoria y aderezo ranch.",
+   "nombre": "Boneless",
+   "orden": 4,
+   "precio": 85,
+   "receta": {
+    "boneless": 8
+   },
+   "vars": []
+  },
+  "corona-victoria": {
+   "activo": true,
+   "area": "barra",
+   "cat": "Cervezas",
+   "desc": "",
+   "nombre": "Corona / Victoria",
+   "orden": 1,
+   "precio": 35,
+   "receta": {},
+   "vars": [
+    {
+     "m": 1,
+     "n": "Corona",
+     "p": 35,
+     "r": {
+      "corona": 1
+     }
+    },
+    {
+     "m": 1,
+     "n": "Victoria",
+     "p": 35,
+     "r": {
+      "victoria": 1
+     }
+    }
+   ]
+  },
+  "dedos-queso": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Botanas",
+   "desc": "Mix de queso manchego y mozzarella con cubierta empanizada y aderezo ranch para dipear.",
+   "nombre": "Dedos de queso",
+   "orden": 3,
+   "precio": 85,
+   "receta": {
+    "dedos": 5
+   },
+   "vars": []
+  },
+  "h-botanera": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Hamburguesas",
+   "desc": "Pan artesanal mini, carne de res, queso americano, tocino crujiente, cebolla salteada, tomate asado y aderezo de la casa. Con papas fritas.",
+   "nombre": "Hamburguesa Botanera",
+   "orden": 1,
+   "precio": 65,
+   "receta": {
+    "carne": 1,
+    "pan-mini": 1,
+    "papas": 0.1,
+    "queso": 1,
+    "tocino": 1
+   },
+   "vars": []
+  },
+  "h-cervalina": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Hamburguesas",
+   "desc": "Pan artesanal, carne de res, queso americano, tocino crujiente, cebolla salteada, tomate fresco, aderezo de la casa y salchicha. Con papas fritas, 2 piezas de boneless y chile toreado.",
+   "nombre": "Hamburguesa Cervalina",
+   "orden": 6,
+   "precio": 160,
+   "receta": {
+    "boneless": 2,
+    "carne": 1,
+    "pan": 1,
+    "papas": 0.15,
+    "queso": 1,
+    "salchicha": 1,
+    "tocino": 2
+   },
+   "vars": []
+  },
+  "h-habanera": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Hamburguesas",
+   "desc": "Pan artesanal, aderezo de habanero, carne de res, queso americano, tocino crujiente, cebolla salteada, tomate asado y aderezo de la casa. Con papas fritas.",
+   "nombre": "Hamburguesa Habanera",
+   "orden": 3,
+   "precio": 135,
+   "receta": {
+    "carne": 1,
+    "pan": 1,
+    "papas": 0.15,
+    "queso": 1,
+    "tocino": 2
+   },
+   "vars": []
+  },
+  "h-pollo": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Hamburguesas",
+   "desc": "Pan artesanal, pechuga de pollo empanizada bañada en aderezo blanco de la casa, lechuga, tomate asado y aderezo de la casa. Con papas fritas.",
+   "nombre": "Hamburguesa Pollo",
+   "orden": 4,
+   "precio": 140,
+   "receta": {
+    "pan": 1,
+    "papas": 0.15,
+    "pollo": 1
+   },
+   "vars": []
+  },
+  "h-queso-doble": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Hamburguesas",
+   "desc": "Pan artesanal, carne de res, queso americano, tocino crujiente, cebolla salteada, tomate asado y aderezo de la casa. Con papas fritas y chile toreado.",
+   "nombre": "Hamburguesa Queso Doble",
+   "orden": 5,
+   "precio": 150,
+   "receta": {
+    "carne": 2,
+    "pan": 1,
+    "papas": 0.15,
+    "queso": 2,
+    "tocino": 2
+   },
+   "vars": []
+  },
+  "h-queso": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Hamburguesas",
+   "desc": "Pan artesanal, carne de res, queso americano, tocino crujiente, cebolla salteada, tomate asado y aderezo de la casa. Con papas fritas y chile toreado.",
+   "nombre": "Hamburguesa Queso",
+   "orden": 2,
+   "precio": 120,
+   "receta": {
+    "carne": 1,
+    "pan": 1,
+    "papas": 0.15,
+    "queso": 1,
+    "tocino": 2
+   },
+   "vars": []
+  },
+  "hotdog-jumbo": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Botanas",
+   "desc": "Salchicha mixta de 100 g, aderezo de la casa, tomate asado, cebolla salteada y tocino crujiente. Con 100 g de papas fritas.",
+   "nombre": "Hotdog Jumbo",
+   "orden": 5,
+   "precio": 80,
+   "receta": {
+    "pan-hotdog": 1,
+    "papas": 0.1,
+    "salchicha": 1,
+    "tocino": 1
+   },
+   "vars": []
+  },
+  "jugo": {
+   "activo": true,
+   "area": "barra",
+   "cat": "Sin alcohol",
+   "desc": "",
+   "nombre": "Jugo",
+   "orden": 3,
+   "precio": 30,
+   "receta": {},
+   "vars": []
+  },
+  "limonada": {
+   "activo": true,
+   "area": "barra",
+   "cat": "Sin alcohol",
+   "desc": "",
+   "nombre": "Limonada",
+   "orden": 4,
+   "precio": 35,
+   "receta": {},
+   "vars": []
+  },
+  "miche-sin-alcohol": {
+   "activo": true,
+   "area": "barra",
+   "cat": "Sin alcohol",
+   "desc": "",
+   "nombre": "Miche sin alcohol",
+   "orden": 5,
+   "precio": 50,
+   "receta": {},
+   "vars": []
+  },
+  "modelo-especial": {
+   "activo": true,
+   "area": "barra",
+   "cat": "Cervezas",
+   "desc": "",
+   "nombre": "Modelo Especial",
+   "orden": 4,
+   "precio": 40,
+   "receta": {
+    "modelo-especial": 1
+   },
+   "vars": []
+  },
+  "nachos": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Botanas",
+   "desc": "Totopos estilo tostitos con queso americano, tocino y rodajas de chile jalapeño en vinagre.",
+   "nombre": "Nachos",
+   "orden": 2,
+   "precio": 45,
+   "receta": {
+    "queso": 2,
+    "tocino": 1,
+    "totopos": 0.15
+   },
+   "vars": []
+  },
+  "negra-modelo": {
+   "activo": true,
+   "area": "barra",
+   "cat": "Cervezas",
+   "desc": "",
+   "nombre": "Negra Modelo",
+   "orden": 3,
+   "precio": 40,
+   "receta": {
+    "negra-modelo": 1
+   },
+   "vars": []
+  },
+  "pacifico": {
+   "activo": true,
+   "area": "barra",
+   "cat": "Cervezas",
+   "desc": "",
+   "nombre": "Pacífico",
+   "orden": 2,
+   "precio": 38,
+   "receta": {
+    "pacifico": 1
+   },
+   "vars": []
+  },
+  "papas-francesa": {
+   "activo": true,
+   "area": "cocina",
+   "cat": "Botanas",
+   "desc": "Sal, sazonador de chiles y toque de hierbas finas.",
+   "nombre": "Papas a la francesa",
+   "orden": 1,
+   "precio": 40,
+   "receta": {
+    "papas": 0.25
+   },
+   "vars": []
+  },
+  "refresco": {
+   "activo": true,
+   "area": "barra",
+   "cat": "Sin alcohol",
+   "desc": "",
+   "nombre": "Refresco",
+   "orden": 2,
+   "precio": 30,
+   "receta": {
+    "refresco": 1
+   },
+   "vars": []
+  },
+  "stella-michelob": {
+   "activo": true,
+   "area": "barra",
+   "cat": "Cervezas",
+   "desc": "",
+   "nombre": "Stella / Michelob",
+   "orden": 5,
+   "precio": 45,
+   "receta": {},
+   "vars": [
+    {
+     "m": 1,
+     "n": "Stella",
+     "p": 45,
+     "r": {
+      "stella": 1
+     }
+    },
+    {
+     "m": 1,
+     "n": "Michelob",
+     "p": 45,
+     "r": {
+      "michelob": 1
+     }
+    }
+   ]
+  }
+ },
+ "insumos": {
+  "agua-mineral": {
+   "costo": 0,
+   "minimo": 12,
+   "nombre": "Agua mineral",
+   "stock": 23,
+   "unidad": "botella"
+  },
+  "alitas": {
+   "costo": 0,
+   "minimo": 40,
+   "nombre": "Alitas",
+   "stock": 112,
+   "unidad": "pza"
+  },
+  "boneless": {
+   "costo": 0,
+   "minimo": 30,
+   "nombre": "Boneless",
+   "stock": 100,
+   "unidad": "pza"
+  },
+  "carne": {
+   "costo": 0,
+   "minimo": 15,
+   "nombre": "Carne de res (torta)",
+   "stock": 45,
+   "unidad": "pza"
+  },
+  "clamato": {
+   "costo": 0,
+   "minimo": 1,
+   "nombre": "Clamato",
+   "stock": 4,
+   "unidad": "L"
+  },
+  "corona": {
+   "costo": 0,
+   "minimo": 24,
+   "nombre": "Cerveza Corona",
+   "stock": 48,
+   "unidad": "botella"
+  },
+  "dedos": {
+   "costo": 0,
+   "minimo": 20,
+   "nombre": "Dedos de queso",
+   "stock": 60,
+   "unidad": "pza"
+  },
+  "michelob": {
+   "costo": 0,
+   "minimo": 6,
+   "nombre": "Cerveza Michelob Ultra",
+   "stock": 12,
+   "unidad": "botella"
+  },
+  "modelo-especial": {
+   "costo": 0,
+   "minimo": 12,
+   "nombre": "Cerveza Modelo Especial",
+   "stock": 24,
+   "unidad": "botella"
+  },
+  "negra-modelo": {
+   "costo": 0,
+   "minimo": 12,
+   "nombre": "Cerveza Negra Modelo",
+   "stock": 23,
+   "unidad": "botella"
+  },
+  "pacifico": {
+   "costo": 0,
+   "minimo": 12,
+   "nombre": "Cerveza Pacífico",
+   "stock": 24,
+   "unidad": "botella"
+  },
+  "pan-hotdog": {
+   "costo": 0,
+   "minimo": 8,
+   "nombre": "Pan para hotdog",
+   "stock": 20,
+   "unidad": "pza"
+  },
+  "pan-mini": {
+   "costo": 0,
+   "minimo": 10,
+   "nombre": "Pan artesanal mini",
+   "stock": 29,
+   "unidad": "pza"
+  },
+  "pan": {
+   "costo": 0,
+   "minimo": 15,
+   "nombre": "Pan artesanal",
+   "stock": 37,
+   "unidad": "pza"
+  },
+  "papas": {
+   "costo": 0,
+   "minimo": 5,
+   "nombre": "Papas a la francesa",
+   "stock": 14.2,
+   "unidad": "kg"
+  },
+  "pollo": {
+   "costo": 0,
+   "minimo": 6,
+   "nombre": "Pechuga de pollo empanizada",
+   "stock": 20,
+   "unidad": "pza"
+  },
+  "queso": {
+   "costo": 0,
+   "minimo": 40,
+   "nombre": "Queso americano",
+   "stock": 115,
+   "unidad": "rebanada"
+  },
+  "refresco": {
+   "costo": 0,
+   "minimo": 12,
+   "nombre": "Refresco",
+   "stock": 24,
+   "unidad": "lata"
+  },
+  "salchicha": {
+   "costo": 0,
+   "minimo": 10,
+   "nombre": "Salchicha mixta 100 g",
+   "stock": 30,
+   "unidad": "pza"
+  },
+  "stella": {
+   "costo": 0,
+   "minimo": 6,
+   "nombre": "Cerveza Stella Artois",
+   "stock": 11,
+   "unidad": "botella"
+  },
+  "tocino": {
+   "costo": 0,
+   "minimo": 50,
+   "nombre": "Tocino",
+   "stock": 143,
+   "unidad": "tira"
+  },
+  "totopos": {
+   "costo": 0,
+   "minimo": 1,
+   "nombre": "Totopos",
+   "stock": 3,
+   "unidad": "kg"
+  },
+  "victoria": {
+   "costo": 0,
+   "minimo": 24,
+   "nombre": "Cerveza Victoria",
+   "stock": 47,
+   "unidad": "botella"
+  }
+ }
+}
