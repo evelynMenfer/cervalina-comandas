@@ -1232,9 +1232,10 @@ function arrancar(db){
   const timer = setTimeout(() => { if (S.estado==='cargando'){ S.estado = navigator.onLine ? 'lento' : 'offline'; render(); } }, 10000);
   const listo = (k, snap) => { if (!snap.metadata.fromCache) S.loaded[k] = true; if (S.loaded.p && S.loaded.i && S.loaded.a){ clearTimeout(timer); if (S.estado!=='error') S.estado = navigator.onLine ? 'ok' : 'offline'; } };
   const fallo = e => { clearTimeout(timer); S.estado = 'error'; render(); if (e && e.code==='permission-denied') toast('Sin permiso para leer los datos. Revisa las reglas de Firestore.','bad'); };
-  db.collection('productos').onSnapshot(s => { const o = {}; s.docs.forEach(d => o[d.id] = {id:d.id, ...d.data()}); S.productos = o; listo('p', s); render(); }, fallo);
-  db.collection('insumos').onSnapshot(s => { const o = {}; s.docs.forEach(d => o[d.id] = {id:d.id, ...d.data()}); S.insumos = o; listo('i', s); render(); }, fallo);
-  db.collection('pedidos').where('abierto','==',true).onSnapshot(s => {
+  const META = {includeMetadataChanges:true};
+  db.collection('productos').onSnapshot(META, s => { const o = {}; s.docs.forEach(d => o[d.id] = {id:d.id, ...d.data()}); S.productos = o; listo('p', s); render(); }, fallo);
+  db.collection('insumos').onSnapshot(META, s => { const o = {}; s.docs.forEach(d => o[d.id] = {id:d.id, ...d.data()}); S.insumos = o; listo('i', s); render(); }, fallo);
+  db.collection('pedidos').where('abierto','==',true).onSnapshot(META, s => {
     S.abiertos = s.docs.map(d => { const x = d.data(); return {id:d.id, ...x, items: Array.isArray(x.items) ? x.items : []}; });
     listo('a', s); render();
   }, fallo);
