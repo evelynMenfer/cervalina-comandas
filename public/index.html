@@ -355,6 +355,14 @@ function disponibles(p){
   }
   return min;
 }
+// Inventario: se descuenta al entregar o al cobrar, nunca al enviar.
+// inv:'pend' = enviado y aún sin descontar; inv:'ok' = ya descontado.
+// Los productos enviados antes de este cambio no traen 'inv' y ya se habían descontado al enviarse.
+function descontarPendientes(items){
+  const por = items.filter(i => i.est==='nuevo' || i.inv==='pend');
+  if (por.length) descontar(por);
+  por.forEach(i => { i.inv = 'ok'; });
+}
 function descontar(items){
   const tot = {};
   for (const it of items){
@@ -392,8 +400,7 @@ function enviar(id){
     const nuevos = ped.items.filter(i => i.est==='nuevo');
     if (!nuevos.length) return;
     const t = Date.now();
-    nuevos.forEach(i => { i.est='cocina'; i.t=t; });
-    descontar(nuevos);
+    nuevos.forEach(i => { i.est='cocina'; i.t=t; i.inv='pend'; });
     toast(`Enviado a preparación: ${nuevos.reduce((s,i)=>s+i.qty,0)} productos`);
     return {items:ped.items};
   });
@@ -654,7 +661,7 @@ function vInsumos(){
   return `<div class="toolbar"><h2>Insumos</h2>
       <div class="seg"><button class="${S.soloBajos?'':'on'}" data-act="filtroIns" data-b="0">Todos (${lista.length})</button><button class="${S.soloBajos?'on':''}" data-act="filtroIns" data-b="1">Por surtir (${bajos+agot})</button></div>
       <button class="btn primary" data-act="insNuevo">+ Nuevo insumo</button></div>
-    <p class="hint" style="margin:-6px 0 14px">El inventario se descuenta solo al enviar una comanda, según la receta de cada producto en Menú.</p>
+    <p class="hint" style="margin:-6px 0 14px">El inventario se descuenta solo cuando un producto se entrega o se cobra, según su receta en Menú. Lo que se quita de una cuenta o se cancela antes de entregarse no se descuenta.</p>
     ${ver.length ? `<div class="card tw"><table><thead><tr><th>Insumo</th><th class="r">Existencia</th><th class="r">Mínimo</th><th>Estado</th><th class="r">Acciones</th></tr></thead><tbody>
       ${ver.map(i => `<tr><td><strong>${esc(i.nombre)}</strong>${i.costo?`<br><small class="hint">${money(i.costo)} por ${esc(i.unidad)}</small>`:''}</td>
         <td class="r"><span class="stock num">${r3(i.stock||0)}</span> <small class="hint">${esc(i.unidad)}</small></td>
@@ -732,7 +739,7 @@ function pintarCobro(){
   const hayEf = M.pagos.some(p => p.metodo==='efectivo');
   openModal(`<span class="lbl">Paso 2 de 2 · Registra el pago</span><h2>Pago de ${esc(M.mesa)}</h2>
     <div><div class="cobro-total" id="m-apagar">${money(aPagar())}</div><p class="hint" id="m-desglose" style="text-align:center"></p></div>
-    ${M.sinEnviar?`<p class="hint" style="text-align:center">Hay productos sin enviar; se descontarán del inventario al cobrar.</p>`:''}
+    ${M.sinEnviar?`<p class="hint" style="text-align:center">Hay productos sin enviar; se descuentan del inventario al cobrar.</p>`:''}
     <div class="field"><span class="lbl">Propina</span>
       <div class="qchips" id="m-prop">${[0,10,15,20].map(p => `<button class="${M.propPct===p?'on':''}" data-act="propina" data-p="${p}">${p ? p+'% · '+money(Math.round(M.total*p/100)) : 'Sin propina'}</button>`).join('')}</div>
       <input id="f-propina" class="mini" type="number" inputmode="decimal" step="any" min="0" value="${M.propina||''}" placeholder="Otra cantidad"></div>
@@ -932,7 +939,7 @@ const ACTS = {
       <div class="mact"><button class="btn sm ghost" data-act="menuImpresion">Menú de impresión</button><button class="btn sm ghost spacer" data-act="ticketDescargar">Descargar imagen</button>
         <button class="btn" data-act="imprimirTicket">Imprimir</button><button class="btn primary" data-act="cerrar">Listo</button></div>`);
   },
-  todoEntregado: () => { if (!puede()) return; mutPedido(S.cuentaSel, p => { p.items.forEach(i => { if (i.est==='cocina'||i.est==='listo') i.est = 'entregado'; }); return {items:p.items}; }).then(r => { if (r!==false) toast('Todo entregado'); }); },
+  todoEntregado: () => { if (!puede()) return; mutPedido(S.cuentaSel, p => { const ent = p.items.filter(i => i.est==='cocina'||i.est==='listo'); ent.forEach(i => i.est = 'entregado'); descontarPendientes(ent); return {items:p.items}; }).then(r => { if (r!==false) toast('Todo entregado'); }); },
   verTicket: d => { const p = S.ventas.find(x => x.id===d.id); if (p) modalTicket(p, false); },
   ticketCopiar: () => {
     const txt = M.lineas.join('\n');
@@ -979,8 +986,7 @@ const ACTS = {
     const pago = {pagos, propina, recibido, cambio:r2(recibido-ef), metodo: pagos.length>1 ? 'mixto' : pagos[0].metodo};
     let tk = null;
     mutPedido(id, p => {
-      const nuevos = p.items.filter(i => i.est==='nuevo');
-      if (nuevos.length) descontar(nuevos);
+      descontarPendientes(p.items);
       p.items.forEach(i => i.est = 'entregado');
       const ch = {items:p.items, total:totalDe(p.items), abierto:false, estado:'cobrada', cobrado:Date.now(), diaPago:hoy(), pago};
       tk = {...p, ...ch};
@@ -1003,7 +1009,7 @@ const ACTS = {
   area: d => { S.area = d.a; ls.set('cv.area', d.a); render(); },
   itemListo: d => { if (!puede()) return; mutPedido(d.p, p => { const it = p.items.find(i => i.k===d.k); if (!it) return; it.est = it.est==='cocina' ? 'listo' : 'cocina'; return {items:p.items}; }); },
   ticketListo: d => { if (!puede()) return; mutPedido(d.p, p => { p.items.forEach(i => { if (i.est==='cocina' && (S.area==='todo' || (i.area||'cocina')===S.area)) i.est = 'listo'; }); return {items:p.items}; }); },
-  entregar: d => { if (!puede()) return; mutPedido(d.p, p => { p.items.forEach(i => { if (i.est==='listo' && (S.area==='todo' || (i.area||'cocina')===S.area)) i.est = 'entregado'; }); return {items:p.items}; }); },
+  entregar: d => { if (!puede()) return; mutPedido(d.p, p => { const ent = p.items.filter(i => i.est==='listo' && (S.area==='todo' || (i.area||'cocina')===S.area)); ent.forEach(i => i.est = 'entregado'); descontarPendientes(ent); return {items:p.items}; }); },
   diaHoy: () => { S.ventasDia = hoy(); subVentas(); render(); },
   filtroIns: d => { S.soloBajos = d.b==='1'; render(); },
   insNuevo: () => { if (puede()) modalInsumo(null); },
