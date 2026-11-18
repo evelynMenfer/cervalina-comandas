@@ -412,7 +412,7 @@ body{margin:0}
 <script src="vendor/firebase-app-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-auth-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-firestore-compat.js?v=10.12.2"></script>
-<script src="config.js?v=202611182309"></script>
+<script src="config.js?v=202611182313"></script>
 <script>
 // En Netlify (plan gratuito) aparece su aviso flotante abajo a la derecha. En celular se deja una franja libre
 // para que el aviso no tape botones de la app.
@@ -436,8 +436,8 @@ const NOTAS = ['Sin cebolla','Sin tomate','Sin tocino','Sin chile','Bien cocida'
 
 const S = {
   db:null, estado:'cargando', puedeEscribir:true,
-  view: ls.get('cv.view','comandas'), cat: ls.get('cv.cat',null), area: ls.get('cv.area','cocina'),
-  cuentaSel: ls.get('cv.cuenta',null), mesero: ls.get('cv.mesero',''), menuCat: ls.get('cv.mcat',null), menuBuscar:'',
+  view: 'comandas', cat: ls.get('cv.cat',null), area: ls.get('cv.area','cocina'),
+  cuentaSel: null, mesero: ls.get('cv.mesero',''), menuCat: ls.get('cv.mcat',null), menuBuscar:'',
   productos:{}, insumos:{}, abiertos:[], ventas:[], ventasDia: hoy(),
   loaded:{p:false,i:false,a:false}, confirm:null, soloBajos:false, pendingAdd:null
 };
@@ -681,7 +681,7 @@ const MESAS_DEF = [...Array(12)].map((_,i) => 'Mesa '+(i+1)).concat(['Barra','Pa
 const listaMesas = () => Array.isArray(S.mesas) && S.mesas.length ? S.mesas : MESAS_DEF;
 function tileCuenta(c, suf){
   const n = c.items.reduce((t,i) => t+i.qty, 0);
-  return `<button class="mesa-t ocupada ${puntoCuenta(c)}" data-act="selCuenta" data-id="${c.id}">
+  return `<button class="mesa-t ocupada ${puntoCuenta(c)}" data-act="verMesa" data-id="${c.id}">
     <b>${esc(c.mesa)}${suf}</b><span class="mt-total num">${money(c.total)}</span>
     <small>${n} ${n===1?'producto':'productos'} · ${mins(c.creado)} min${c.mesero?' · '+esc(c.mesero):''}</small>${estadoCuenta(c)}</button>`;
 }
@@ -1151,7 +1151,14 @@ function leerProducto(){
 
 /* ---------- Manejadores ---------- */
 const ACTS = {
-  tab: d => { S.view = d.v; ls.set('cv.view', d.v); S.confirm = null; render(); },
+  tab: d => {
+    if (d.v==='comandas' && S.view==='comandas' && S.cuentaSel){ ACTS.irMesas(); return; }
+    S.view = d.v; S.confirm = null; render(); const v = $('#view'); if (v) v.scrollTop = 0;
+  },
+  verMesa: d => {
+    const c = S.abiertos.find(x => x.id===d.id); if (!c) return;
+    S.cuentaSel = d.id; S.ticketAbierto = c.items.length > 0; S.confirm = null; render();
+  },
   cat: d => { S.cat = d.c; ls.set('cv.cat', d.c); render(); },
   abrirCuenta: () => { S.ticketAbierto = true; render(); },
   cerrarCuenta: () => { S.ticketAbierto = false; render(); },
