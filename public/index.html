@@ -253,7 +253,30 @@ input[type=date]{border:1px solid var(--line);background:var(--surface);border-r
 .notice{max-width:560px;margin:40px auto;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px;display:grid;gap:10px}
 
 .cstrip,.tbar,.t-cerrar{display:none}
+.mesas-v .toolbar .mh-tit{margin-right:auto}
+.mesas-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:18px}
+.mesa-t{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:14px;min-height:124px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left}
+.mesa-t:active{transform:scale(.98)}
+.mesa-t b{font:700 18px/1.2 var(--display)}
+.mesa-t small{color:var(--ink-2);font-size:12.5px}
+.mesa-t .pill{margin-top:auto}
+.mesa-t.libre{border:2px dashed var(--line);background:transparent;justify-content:space-between}
+.mt-est{color:var(--ok);font-weight:700;font-size:14px}
+.mesa-t.ocupada{border-width:2px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.mesa-t.ocupada.warn{border-color:var(--warn)} .mesa-t.ocupada.lav{border-color:var(--lav)} .mesa-t.ocupada.ok{border-color:var(--ok)}
+.mt-total{font:800 24px var(--display)}
+.mesa-t.mas{align-items:center;justify-content:center;text-align:center;color:var(--ink-2)}
+.mesa-t.mas .mas-i{font:800 28px/1 var(--display);color:var(--olive)}
+.mesa-t.mas b{font-size:15px;color:var(--ink)}
+.sec-t{font-size:18px;margin:4px 0 10px;display:flex;align-items:center;gap:8px}
+.mesas-g.libres{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.mesas-g.libres .mesa-t{min-height:72px;padding:12px 14px;justify-content:center;gap:2px}
+.mesas-g.libres .mesa-t b{font-size:16px}
+.mesas-g.libres .mt-est{font-size:13px}
 @media (max-width:1180px){
+  .top{flex-wrap:wrap;gap:8px 14px}
+  .tabs{order:3;flex-basis:100%}
+  .tabs .tab{flex:1;justify-content:center;padding:10px 8px}
   .cmd{grid-template-columns:minmax(0,1fr) 340px;grid-template-rows:auto minmax(0,1fr)}
   .cuentas{grid-column:1/-1;flex-direction:row;overflow-x:auto;padding-bottom:4px}
   .cuentas>*{flex:none;width:190px}
@@ -329,6 +352,12 @@ input[type=date]{border:1px solid var(--line);background:var(--surface);border-r
   main#view{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
   .tbar{bottom:calc(72px + env(safe-area-inset-bottom,0px))}
   .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .mesas-g{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .mesas-g.libres{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .mesas-g.libres .mesa-t{min-height:64px;padding:10px}
+  .mesas-g.libres .mesa-t b{font-size:14.5px}
+  .mesa-t{min-height:108px;padding:12px}
+  .mesas-v .toolbar .btn{flex:1 1 auto}
   .prod{min-height:108px;padding:10px}
   .prod h4{font-size:13.5px}
   .prod p{font-size:12px}
@@ -375,7 +404,7 @@ body{margin:0}
 <script src="vendor/firebase-app-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-auth-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-firestore-compat.js?v=10.12.2"></script>
-<script src="config.js?v=202611182243"></script>
+<script src="config.js?v=202611182253"></script>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -530,6 +559,18 @@ function modalMerma(iid){
 const nivel = ins => (ins.stock||0) <= 0 ? 'agotado' : (ins.stock||0) <= (ins.minimo||0) ? 'bajo' : 'ok';
 
 /* ---------- Acciones de comandas ---------- */
+function crearCuentaCon(mesa){
+    const ref = S.db.collection('pedidos').doc();
+    S.cuentaSel = ref.id; ls.set('cv.cuenta', ref.id);
+    const add = S.pendingAdd; S.pendingAdd = null;
+    closeModal(); S.ticketAbierto = false;
+    const p0 = add && S.productos[add.pid];
+    const items = p0 ? [nuevoItem(p0, add.vn)] : [];
+    const data = {folio:folio(), mesa, mesero:S.mesero, abierto:true, estado:'abierta', items, total:totalDe(items), creado:Date.now(), dia:hoy()};
+    S.nuevaCuenta = {id:ref.id, ...structuredClone(data)};
+    enqueue('pedidos/'+ref.id, () => ref.set(data)).then(r => { if (r!==false) toast(p0 ? `Cuenta abierta: ${mesa} · +1 ${p0.nombre}` : `Cuenta abierta: ${mesa}`); });
+    render();
+}
 function nuevoItem(p, vn){
   const v = vn ? (p.vars||[]).find(x => x.n===vn) : null;
   return {k:uid(), pid:p.id, nombre:p.nombre, vn:vn||'', precio: v ? +v.p : +p.precio, qty:1, nota:'', area:p.area||'cocina', est:'nuevo'};
@@ -625,13 +666,44 @@ function estadoCuenta(p){
   if (p.items.length) return `<span class="pill p-mute">Servida</span>`;
   return `<span class="pill p-mute">Vacía</span>`;
 }
+const MESAS_DEF = [...Array(12)].map((_,i) => 'Mesa '+(i+1)).concat(['Barra','Para llevar','Domicilio']);
+const listaMesas = () => Array.isArray(S.mesas) && S.mesas.length ? S.mesas : MESAS_DEF;
+function tileCuenta(c, suf){
+  const n = c.items.reduce((t,i) => t+i.qty, 0);
+  return `<button class="mesa-t ocupada ${puntoCuenta(c)}" data-act="selCuenta" data-id="${c.id}">
+    <b>${esc(c.mesa)}${suf}</b><span class="mt-total num">${money(c.total)}</span>
+    <small>${n} ${n===1?'producto':'productos'} · ${mins(c.creado)} min${c.mesero?' · '+esc(c.mesero):''}</small>${estadoCuenta(c)}</button>`;
+}
+function vMesas(){
+  const abiertas = S.abiertos.slice().sort((a,b) => a.creado-b.creado);
+  const L = listaMesas(), ocup = [], libres = [];
+  L.forEach(m => {
+    const cs = abiertas.filter(c => c.mesa===m);
+    if (!cs.length) libres.push(`<button class="mesa-t libre" data-act="abrirMesa" data-m="${esc(m)}"><b>${esc(m)}</b><span class="mt-est">Libre</span></button>`);
+    cs.forEach((c,ix) => ocup.push(tileCuenta(c, cs.length>1 ? ` (${ix+1})` : '')));
+    if (cs.length && !/^mesa\b/i.test(m)) libres.push(`<button class="mesa-t libre mas" data-act="abrirMesa" data-m="${esc(m)}"><b>+ ${esc(m)}</b><span class="mt-est">Otra cuenta</span></button>`);
+  });
+  abiertas.filter(c => !L.includes(c.mesa)).forEach(c => ocup.push(tileCuenta(c, '')));
+  const total = abiertas.reduce((t,c) => t+(c.total||0), 0);
+  return `<div class="mesas-v">
+    <div class="toolbar"><div class="mh-tit"><h2>Mesas</h2><span class="hint">${abiertas.length} ${abiertas.length===1?'cuenta abierta':'cuentas abiertas'}${abiertas.length ? ' · '+money(total) : ''}</span></div>
+      <button class="btn" data-act="cambiarMesero">${S.mesero ? 'Mesero: <b>'+esc(S.mesero)+'</b>' : 'Indicar mesero'}</button>
+      <button class="btn" data-act="editarMesas">Editar mesas</button>
+      <button class="btn primary" data-act="nueva">+ Otra cuenta</button></div>
+    ${!Object.keys(S.productos).length ? `<div class="empty" style="display:grid;gap:10px;justify-items:center;margin-bottom:16px"><span>Aún no hay productos. Carga la carta de Cervalina o agrégalos en la pestaña Menú.</span>${S.loaded.p ? `<button class="btn primary" data-act="cargarCarta">Cargar carta e insumos de Cervalina</button>` : ''}</div>` : ''}
+    ${ocup.length ? `<h3 class="sec-t">Cuentas abiertas <span class="mc-n num">${ocup.length}</span></h3><div class="mesas-g">${ocup.join('')}</div>` : ''}
+    <h3 class="sec-t">Mesas libres <span class="mc-n num">${libres.filter(x => !x.includes(' mas"')).length}</span></h3><div class="mesas-g libres">${libres.join('')}</div>
+    <p class="hint">Toca una mesa libre para abrir su cuenta y tomar el pedido. Toca una ocupada para agregar productos o cobrar.</p>
+  </div>`;
+}
 function vComandas(){
   const cuentas = S.abiertos.slice().sort((a,b) => a.creado-b.creado);
   const sel = cuentas.find(c => c.id===S.cuentaSel) || cuentaNueva(S.cuentaSel);
+  if (!sel) return vMesas();
   const cs = cats();
   if (!cs.includes(S.cat)) S.cat = cs[0] || null;
   const prods = S.cat ? prodsDe(S.cat) : [];
-  const cuentasHTML = `<button class="btn primary block" data-act="nueva">+ Nueva cuenta</button>` +
+  const cuentasHTML = `<button class="btn primary block" data-act="irMesas">← Mesas</button>` +
     (cuentas.length ? cuentas.map(c => `<button class="cuenta ${c.id===S.cuentaSel?'on':''}" data-act="selCuenta" data-id="${c.id}">
         <div class="row"><strong>${esc(c.mesa)}</strong><span class="num">${money(c.total)}</span></div>
         <div class="row"><small>#${esc(c.folio)} · ${mins(c.creado)} min${c.mesero?' · '+esc(c.mesero):''}</small></div>
@@ -640,7 +712,7 @@ function vComandas(){
   const carta = cs.length ? `<div class="chips">${cs.map(c => `<button class="chip ${c===S.cat?'on':''}" data-act="cat" data-c="${esc(c)}">${esc(c)}</button>`).join('')}</div>
     <div class="grid">${prods.map(cardProd).join('')}</div>`
     : `<div class="empty" style="display:grid;gap:10px;justify-items:center"><span>Aún no hay productos. Carga la carta de Cervalina o agrégalos en la pestaña Menú.</span>${S.loaded.p ? `<button class="btn primary" data-act="cargarCarta">Cargar carta e insumos de Cervalina</button>` : ''}</div>`;
-  const strip = `<div class="cstrip" id="k-cstrip" data-keep><button class="cs nueva" data-act="nueva">+ Nueva cuenta</button>${cuentas.map(c => `<button class="cs ${c.id===S.cuentaSel?'on':''}" data-act="selCuenta" data-id="${c.id}"><span class="cs-dot ${puntoCuenta(c)}"></span><b>${esc(c.mesa)}</b><span class="num">${money(c.total)}</span></button>`).join('')}</div>`;
+  const strip = `<div class="cstrip" id="k-cstrip" data-keep><button class="cs nueva" data-act="irMesas">← Mesas</button>${cuentas.map(c => `<button class="cs ${c.id===S.cuentaSel?'on':''}" data-act="selCuenta" data-id="${c.id}"><span class="cs-dot ${puntoCuenta(c)}"></span><b>${esc(c.mesa)}</b><span class="num">${money(c.total)}</span></button>`).join('')}</div>`;
   const nArt = sel ? sel.items.reduce((t,i) => t+i.qty, 0) : 0;
   const nNuevo = sel ? sel.items.filter(i => i.est==='nuevo').reduce((t,i) => t+i.qty, 0) : 0;
   const tbar = sel ? `<button class="tbar" data-act="abrirCuenta"><span class="tb-info"><b>${esc(sel.mesa)}</b><small>${nArt} ${nArt===1?'producto':'productos'}${nNuevo ? ` · ${nNuevo} sin enviar` : ''}</small></span><b class="tb-total num">${money(sel.total)}</b><span class="tb-cta">Ver cuenta</span></button>` : '';
@@ -710,6 +782,7 @@ function todasCats(){
 }
 function ordenCat(a,b){ const L = todasCats(); return L.indexOf(a) - L.indexOf(b); }
 function subCategorias(db){
+  db.doc('config/mesas').onSnapshot(s => { const d = s.exists ? s.data() : null; S.mesas = d && Array.isArray(d.lista) ? d.lista : null; if (S.view==='comandas') render(); }, () => {});
   db.doc('config/categorias').onSnapshot(s => { const d = s.exists ? s.data() : null; S.categorias = d && Array.isArray(d.lista) ? d.lista : null; render(); }, () => {});
 }
 function guardarCats(L){ S.categorias = L; return enqueue('config/categorias', () => S.db.doc('config/categorias').set({lista:L})); }
@@ -919,7 +992,7 @@ let M = {};
 
 function modalNuevaCuenta(){
   const ocupadas = new Set(S.abiertos.map(p => p.mesa));
-  const opts = [...Array(12)].map((_,i) => 'Mesa '+(i+1)).concat(['Barra','Para llevar','Domicilio']);
+  const opts = listaMesas();
   openModal(`<h2>Nueva cuenta</h2>
     <div class="field"><span class="lbl">Mesa</span><div class="mesas">${opts.map(m => `<button class="mesa ${ocupadas.has(m)?'ocupada':''}" data-act="pickMesa" data-m="${esc(m)}">${esc(m)}</button>`).join('')}</div>
     <small class="hint">Las mesas con borde punteado ya tienen una cuenta abierta.</small></div>
@@ -1079,15 +1152,33 @@ const ACTS = {
     const mesa = $('#f-mesa').value.trim();
     if (!mesa){ toast('Elige una mesa o escribe un nombre.','bad'); return; }
     S.mesero = $('#f-mesero').value.trim(); ls.set('cv.mesero', S.mesero);
-    const ref = S.db.collection('pedidos').doc();
-    S.cuentaSel = ref.id; ls.set('cv.cuenta', ref.id);
-    const add = S.pendingAdd; S.pendingAdd = null;
-    closeModal(); S.ticketAbierto = false;
-    const p0 = add && S.productos[add.pid];
-    const items = p0 ? [nuevoItem(p0, add.vn)] : [];
-    const data = {folio:folio(), mesa, mesero:S.mesero, abierto:true, estado:'abierta', items, total:totalDe(items), creado:Date.now(), dia:hoy()};
-    S.nuevaCuenta = {id:ref.id, ...structuredClone(data)};
-    enqueue('pedidos/'+ref.id, () => ref.set(data)).then(r => { if (r!==false) toast(p0 ? `Cuenta abierta: ${mesa} · +1 ${p0.nombre}` : `Cuenta abierta: ${mesa}`); });
+    crearCuentaCon(mesa);
+  },
+  abrirMesa: d => { if (puede()) crearCuentaCon(d.m); },
+  irMesas: () => {
+    const c = S.abiertos.find(x => x.id===S.cuentaSel) || cuentaNueva(S.cuentaSel);
+    if (c && !c.items.length) enqueue('pedidos/'+c.id, () => S.db.doc('pedidos/'+c.id).delete());
+    S.cuentaSel = null; ls.set('cv.cuenta', null); S.ticketAbierto = false; S.confirm = null; render();
+    const v = $('#view'); if (v) v.scrollTop = 0;
+  },
+  cambiarMesero: () => {
+    openModal(`<h2>¿Quién atiende?</h2><p class="hint" style="margin:0">Se guarda en este dispositivo y aparece en las cuentas nuevas y en los tickets.</p>
+      <label class="field"><span class="lbl">Nombre del mesero</span><input id="f-mesero2" value="${esc(S.mesero)}" placeholder="Ej. Ana"></label>
+      <div class="mact"><button class="btn" data-act="cerrar">Cancelar</button><button class="btn primary" data-act="guardarMesero">Guardar</button></div>`);
+  },
+  guardarMesero: () => { S.mesero = $('#f-mesero2').value.trim(); ls.set('cv.mesero', S.mesero); closeModal(); render(); },
+  editarMesas: () => {
+    if (!puede()) return;
+    openModal(`<h2>Editar mesas</h2><p class="hint" style="margin:0">Escribe una mesa por renglón, en el orden en que quieres verlas. Las que no empiezan con “Mesa” (como Barra o Para llevar) pueden tener varias cuentas a la vez.</p>
+      <label class="field"><span class="lbl">Mesas</span><textarea id="f-mesas" rows="12" style="min-height:240px">${esc(listaMesas().join('\n'))}</textarea></label>
+      <div class="mact"><button class="btn spacer" data-act="mesasDef">Restablecer</button><button class="btn" data-act="cerrar">Cancelar</button><button class="btn primary" data-act="guardarMesas">Guardar mesas</button></div>`);
+  },
+  mesasDef: () => { $('#f-mesas').value = MESAS_DEF.join('\n'); },
+  guardarMesas: () => {
+    const L = [...new Set($('#f-mesas').value.split('\n').map(x => x.trim()).filter(Boolean))];
+    if (!L.length){ toast('Escribe al menos una mesa.','bad'); return; }
+    closeModal(); S.mesas = L;
+    enqueue('config/mesas', () => S.db.doc('config/mesas').set({lista:L})).then(r => { if (r!==false) toast('Mesas guardadas'); });
     render();
   },
   prod: d => { const p = S.productos[d.id]; if (!p) return; if (p.vars && p.vars.length) modalVars(p); else agregar(p.id, ''); },
