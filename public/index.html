@@ -75,6 +75,7 @@ main#view{flex:1;min-height:0;overflow:auto;padding-block:16px;
 .p-warn{background:var(--warn-soft);color:var(--warn)} .p-lav{background:var(--lav-soft);color:var(--lav)}
 .p-ok{background:var(--ok-soft);color:var(--ok)} .p-bad{background:var(--bad-soft);color:var(--bad)}
 .p-mute{background:var(--surface-2);color:var(--ink-2)}
+.p-pago{background:var(--olive);color:var(--paper)}
 .lbl{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
 h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
 .empty{color:var(--ink-2);padding:18px;text-align:center;border:1.5px dashed var(--line);border-radius:var(--r);margin:0}
@@ -263,7 +264,7 @@ input[type=date]{border:1px solid var(--line);background:var(--surface);border-r
 .mesa-t.libre{border:2px dashed var(--line);background:transparent;justify-content:space-between}
 .mt-est{color:var(--ok);font-weight:700;font-size:14px}
 .mesa-t.ocupada{border-width:2px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
-.mesa-t.ocupada.warn{border-color:var(--warn)} .mesa-t.ocupada.lav{border-color:var(--lav)} .mesa-t.ocupada.ok{border-color:var(--ok)}
+.mesa-t.ocupada.warn{border-color:var(--warn)} .mesa-t.ocupada.lav{border-color:var(--lav)} .mesa-t.ocupada.ok{border-color:var(--ok)} .mesa-t.ocupada.pago{border-color:var(--olive);background:var(--olive-soft)}
 .mt-total{font:800 24px var(--display)}
 .mesa-t.mas{align-items:center;justify-content:center;text-align:center;color:var(--ink-2)}
 .mesa-t.mas .mas-i{font:800 28px/1 var(--display);color:var(--olive)}
@@ -302,7 +303,7 @@ input[type=date]{border:1px solid var(--line);background:var(--surface);border-r
   .cs.on .num{color:inherit;opacity:.8}
   .cs.nueva{background:var(--olive);color:var(--paper);border-color:var(--olive);font-weight:700}
   .cs-dot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:none}
-  .cs-dot.ok{background:var(--ok)} .cs-dot.lav{background:var(--lav)} .cs-dot.warn{background:var(--warn)}
+  .cs-dot.ok{background:var(--ok)} .cs-dot.pago{background:var(--olive)} .cs-dot.lav{background:var(--lav)} .cs-dot.warn{background:var(--warn)}
   .cmd>.ticket{position:fixed;inset:0;z-index:16;border:0;border-radius:0;overflow:hidden;transform:translateY(102%);visibility:hidden;
     transition:transform .22s ease,visibility 0s linear .22s;
     padding-top:env(safe-area-inset-top,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
@@ -412,7 +413,7 @@ body{margin:0}
 <script src="vendor/firebase-app-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-auth-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-firestore-compat.js?v=10.12.2"></script>
-<script src="config.js?v=202611182313"></script>
+<script src="config.js?v=202611182325"></script>
 <script>
 // En Netlify (plan gratuito) aparece su aviso flotante abajo a la derecha. En celular se deja una franja libre
 // para que el aviso no tape botones de la app.
@@ -661,7 +662,7 @@ function render(){
 }
 
 function puntoCuenta(p){
-  if (p.cuentaImpresa) return 'ok';
+  if (p.cuentaImpresa) return p.cuentaImpresa.total===p.total ? 'pago' : 'warn';
   if (p.items.some(i => i.est==='listo')) return 'ok';
   if (p.items.some(i => i.est==='cocina')) return 'lav';
   if (p.items.some(i => i.est==='nuevo')) return 'warn';
@@ -670,7 +671,7 @@ function puntoCuenta(p){
 function estadoCuenta(p){
   const c = {nuevo:0,cocina:0,listo:0};
   p.items.forEach(i => { if (c[i.est]!=null) c[i.est] += i.qty; });
-  if (p.cuentaImpresa) return p.cuentaImpresa.total===p.total ? `<span class="pill p-ok">Esperando pago</span>` : `<span class="pill p-warn">Ticket desactualizado</span>`;
+  if (p.cuentaImpresa) return p.cuentaImpresa.total===p.total ? `<span class="pill p-pago">Esperando pago</span>` : `<span class="pill p-warn">Ticket desactualizado</span>`;
   if (c.listo) return `<span class="pill p-ok">Listo para entregar</span>`;
   if (c.cocina) return `<span class="pill p-lav">En preparación</span>`;
   if (c.nuevo) return `<span class="pill p-warn">${c.nuevo} sin enviar</span>`;
@@ -773,12 +774,12 @@ function ticketHTML(c){
       ${c.items.some(i => i.est==='cocina'||i.est==='listo') ? `<button class="btn block" data-act="todoEntregado">Marcar todo como entregado</button>` : ''}
       ${c.cuentaImpresa ? (c.cuentaImpresa.total===c.total
         ? `<p class="hint" style="margin:0">Cuenta entregada a las ${hora(c.cuentaImpresa.t)} · esperando pago</p>`
-        : `<p class="hint" style="margin:0;color:var(--warn)">Se modificó la cuenta después de entregar el ticket (${money(c.cuentaImpresa.total)}). Genera uno nuevo con “Cobrar”.</p>`) : ''}
+        : `<p class="hint" style="margin:0;color:var(--warn)">Se modificó la cuenta después de entregar el ticket (${money(c.cuentaImpresa.total)}). Imprime una nueva con “Imprimir cuenta”.</p>`) : ''}
       <button class="btn lav block" data-act="enviar" ${nuevos?'':'disabled'}>Enviar a cocina y barra${nuevos?` (${nuevos})`:''}</button>
       <div class="two"><button class="btn danger ${armadoCancel?'armed':''}" data-act="cancelar">${armadoCancel?'Confirmar cancelación':'Cancelar cuenta'}</button>
       ${c.cuentaImpresa && c.cuentaImpresa.total===c.total
         ? `<button class="btn olive" data-act="pagoDirecto">Registrar pago</button>`
-        : `<button class="btn olive" data-act="cobrar" ${c.items.length?'':'disabled'}>Cobrar</button>`}</div>
+        : `<button class="btn olive" data-act="cobrar" ${c.items.length?'':'disabled'}>Imprimir cuenta</button>`}</div>
     </div>`;
 }
 function cats(){
@@ -1218,6 +1219,7 @@ const ACTS = {
     mutPedido(S.cuentaSel, p => { const it = p.items.find(i => i.k===k); if (!it) return; it.nota = nota; return {items:p.items}; });
   },
   enviar: () => enviar(S.cuentaSel),
+  cuentaEntregada: () => { closeModal(); ACTS.irMesas(); toast('Cuenta entregada · la mesa queda esperando pago'); },
   cobrar: () => {
     const c = S.abiertos.find(x => x.id===S.cuentaSel); if (!c || !puede()) return;
     modalTicket(c, true);
@@ -1494,13 +1496,13 @@ function lineasTicket(p, pre){
 function modalTicket(p, pre){
   M = {id:p.id, lineas: lineasTicket(p, pre), nombre: (pre ? 'cuenta-' : 'ticket-') + p.folio, auto: pre && IMP.auto && !!IMP.ch};
   if (M.auto) imprimir(M.lineas);
-  openModal(`${pre ? '<span class="lbl">Paso 1 de 2 · Entrega la cuenta al cliente</span>' : ''}
+  openModal(`${pre ? '<span class="lbl">Paso 1 de 2 · Imprime y entrega la cuenta</span>' : ''}
     <h2>${pre ? 'Cuenta' : 'Ticket de pago'} · ${esc(p.mesa)}</h2>
     <div class="recibo-wrap"><pre class="recibo" id="recibo">${esc(M.lineas.join('\n'))}</pre></div>
-    ${pre ? `<p class="hint">${M.auto ? 'Se mandó a imprimir. ' : ''}Cuando el cliente pague, toca “Registrar pago”.</p>` : ''}
+    ${pre ? `<p class="hint">${M.auto ? 'Se mandó a imprimir. ' : ''}Entrégala al cliente; cuando vaya a pagar, abre la mesa y toca “Registrar pago”.</p>` : ''}
     <div class="mact"><button class="btn sm ghost" data-act="menuImpresion">Menú de impresión</button><button class="btn sm ghost spacer" data-act="ticketDescargar">Descargar imagen</button>
       <button class="btn" data-act="imprimirTicket">${M.auto ? 'Reimprimir' : 'Imprimir'}</button>
-      ${pre ? `<button class="btn" data-act="cerrar">Cobrar después</button><button class="btn olive" data-act="irAPago">Registrar pago</button>`
+      ${pre ? `<button class="btn olive" data-act="cuentaEntregada">Listo, cuenta entregada</button>`
             : `<button class="btn primary" data-act="cerrar">Listo</button>`}</div>`);
 }
 function modalPagoHecho(p){
