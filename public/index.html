@@ -369,6 +369,13 @@ input[type=date]{border:1px solid var(--line);background:var(--surface);border-r
   .toolbar h2{font-size:22px;flex-basis:100%}
   .impbtn .ib-n{max-width:90px}
 }
+@media (max-width:640px){
+  .con-aviso .bnav{padding-bottom:calc(58px + env(safe-area-inset-bottom,0px))}
+  .con-aviso main#view{padding-bottom:calc(140px + env(safe-area-inset-bottom,0px))}
+  .con-aviso .tbar{bottom:calc(130px + env(safe-area-inset-bottom,0px))}
+  .con-aviso .mact{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
+  .con-aviso .t-foot{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
+}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 *,*::before,*::after{box-sizing:border-box}
 body{margin:0}
@@ -404,8 +411,11 @@ body{margin:0}
 <script src="vendor/firebase-app-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-auth-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-firestore-compat.js?v=10.12.2"></script>
-<script src="config.js?v=202611182253"></script>
+<script src="config.js?v=202611182306"></script>
 <script>
+// En Netlify (plan gratuito) aparece su aviso flotante abajo a la derecha. En celular se deja una franja libre
+// para que el aviso no tape botones de la app.
+if (/\.netlify\.app$/.test(location.hostname)) document.documentElement.classList.add('con-aviso');
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = n => '$' + (Math.round((+n||0)*100)/100).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:2});
