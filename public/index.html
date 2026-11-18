@@ -678,7 +678,15 @@ function vMenu(){
 }
 
 /* ---------- Modal ---------- */
-function openModal(html){ $('#sheet').innerHTML = html; $('#modal').hidden = false; const f = $('#sheet').querySelector('input:not([type=checkbox]),textarea'); if (f && matchMedia('(pointer:fine)').matches) f.focus(); }
+function openModal(html){
+  // Si la ventana ya estaba abierta (se vuelve a dibujar), conserva la posición y no mueve el cursor al primer campo.
+  const sh = $('#sheet'), yaAbierta = !$('#modal').hidden, y = sh.scrollTop;
+  sh.innerHTML = html; $('#modal').hidden = false;
+  if (yaAbierta){ sh.scrollTop = y; return; }
+  sh.scrollTop = 0;
+  const f = sh.querySelector('input:not([type=checkbox]),textarea'); if (f && matchMedia('(pointer:fine)').matches) f.focus();
+}
+function enfocarUltimo(sel){ const els = document.querySelectorAll(sel), el = els[els.length-1]; if (!el) return; el.focus(); el.scrollIntoView({block:'nearest'}); }
 function closeModal(){ $('#modal').hidden = true; $('#sheet').innerHTML = ''; M = {}; }
 let M = {};
 
@@ -1051,9 +1059,9 @@ const ACTS = {
     M.borrando = null; toast(n ? `Categoría eliminada; sus productos pasaron a “${dest}”` : 'Categoría eliminada'); pintarCategorias(); render();
   },
   prodToggle: d => { if (!puede()) return; const p = S.productos[d.id]; if (!p) return; enqueue('productos/'+d.id, () => S.db.doc('productos/'+d.id).update({activo: p.activo===false})); },
-  agregarVar: () => { leerProducto(); M.d.vars.push({n:'', p:0, m:1}); pintarProducto(); },
+  agregarVar: () => { leerProducto(); M.d.vars.push({n:'', p:0, m:1}); pintarProducto(); enfocarUltimo('.vrow .v-n'); },
   quitarVar: d => { leerProducto(); M.d.vars.splice(+d.ix, 1); pintarProducto(); },
-  agregarRec: () => { leerProducto(); const libre = Object.keys(S.insumos).find(k => !(k in M.d.receta)); if (libre) M.d.receta[libre] = 1; pintarProducto(); },
+  agregarRec: () => { leerProducto(); const libre = Object.keys(S.insumos).find(k => !(k in M.d.receta)); if (libre) M.d.receta[libre] = 1; pintarProducto(); enfocarUltimo('.rrow .r-i'); },
   quitarRec: d => { leerProducto(); const k = Object.keys(M.d.receta)[+d.ix]; delete M.d.receta[k]; pintarProducto(); },
   prodGuardar: () => {
     leerProducto(); const p = M.d;
