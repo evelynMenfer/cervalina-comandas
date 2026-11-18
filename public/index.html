@@ -259,6 +259,7 @@ input[type=date]{border:1px solid var(--line);background:var(--surface);border-r
   .cuentas .empty{width:auto}
 }
 @media (max-width:820px){
+  .tabs .tab{flex:1;justify-content:center;padding:10px 8px}
   .menu{display:flex;flex-direction:column;height:auto}
   .menu>*{overflow:visible}
   .menu-cats{flex-direction:row;overflow-x:auto;padding-bottom:4px}
@@ -270,6 +271,28 @@ input[type=date]{border:1px solid var(--line);background:var(--surface);border-r
   .cmd>*{overflow:visible}
   .ticket{order:-1}
   .t-items{max-height:none}
+}
+.bnav{display:none}
+.impbtn .ib-s{display:none}
+.impbtn .ib-n{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:640px){
+  .tabs{display:none}
+  .top{flex-wrap:nowrap;gap:10px}
+  .brand b{font-size:18px}
+  .stat #estado{display:none}
+  .impbtn{padding:6px 10px;min-height:36px;font-size:13px;min-width:0}
+  .impbtn .ib-l{display:none}
+  .impbtn .ib-s{display:inline}
+  .bnav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;left:0;right:0;bottom:0;z-index:15;background:var(--bar);
+    border-top:1px solid rgba(255,255,255,.08);padding-bottom:env(safe-area-inset-bottom,0px);
+    padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+  .bn{position:relative;background:none;border:0;color:var(--bar-2);display:grid;justify-items:center;align-content:center;gap:3px;padding:8px 2px 7px;min-height:60px;font-size:11.5px;font-weight:600}
+  .bn svg{width:25px;height:25px}
+  .bn.on{color:var(--bar-fg)}
+  .bn.on::before{content:"";position:absolute;top:0;left:24%;right:24%;height:3px;border-radius:0 0 3px 3px;background:var(--lav)}
+  .bn .badge{position:absolute;top:5px;left:calc(50% + 5px);min-width:18px;height:18px;padding:0 5px;font-size:11px}
+  main#view{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+  .impbtn .ib-n{max-width:90px}
 }
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 *,*::before,*::after{box-sizing:border-box}
@@ -299,13 +322,14 @@ body{margin:0}
   <div class="stat"><span class="dot" id="dot"></span><span id="estado">Conectando…</span><span class="clock" id="clock"></span></div>
 </header>
 <main id="view"></main>
+<nav class="bnav" id="bnav" aria-label="Secciones"></nav>
 <div id="modal" hidden><div class="scrim" data-act="cerrar"></div><div class="sheet" role="dialog" aria-modal="true" id="sheet"></div></div>
 <div id="toast"></div>
 
 <script src="vendor/firebase-app-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-auth-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-firestore-compat.js?v=10.12.2"></script>
-<script src="config.js?v=202611182226"></script>
+<script src="config.js?v=202611182232"></script>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -492,17 +516,27 @@ function setHTML(el, html){
   el.scrollTop = top;
   for (const [id,st] of Object.entries(keep)){ const n = document.getElementById(id); if (n) n.scrollTop = st; }
 }
+const svg = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICONOS = {
+  comandas: svg('<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5"/><path d="M8.5 10h7M8.5 13.5h7M8.5 17h4"/>'),
+  cocina: svg('<path d="M4 11h16v2a7 7 0 0 1-7 7h-2a7 7 0 0 1-7-7z"/><path d="M2.5 11h19"/><path d="M9 7.5c0-1 1-1.5 1-2.5M13 7.5c0-1 1-1.5 1-2.5"/>'),
+  caja: svg('<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6.5 9.5v.01M17.5 14.5v.01"/>'),
+  insumos: svg('<path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/>'),
+  menu: svg('<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/><path d="M9 8h6"/>')
+};
 function render(){
   const pendCocina = S.abiertos.filter(p => p.items.some(i => i.est==='cocina')).length;
   const bajos = Object.values(S.insumos).filter(i => nivel(i)!=='ok').length;
   const tabs = [['comandas','Comandas',0],['cocina','Cocina y barra',pendCocina],['caja','Caja y ventas',0],['insumos','Insumos',bajos],['menu','Menú',0]];
   setHTML($('#tabs'), tabs.map(([v,l,b]) => `<button class="tab ${S.view===v?'on':''}" data-act="tab" data-v="${v}">${l}${b?`<span class="badge ${v==='insumos'?'bad':''}">${b}</span>`:''}</button>`).join(''));
+  const corto = {comandas:'Comandas', cocina:'Cocina', caja:'Caja', insumos:'Insumos', menu:'Menú'};
+  setHTML($('#bnav'), tabs.map(([v,l,b]) => `<button class="bn ${S.view===v?'on':''}" data-act="tab" data-v="${v}" aria-label="${l}" ${S.view===v?'aria-current="page"':''}>${ICONOS[v]}<span>${corto[v]}</span>${b?`<span class="badge ${v==='insumos'?'bad':''}">${b}</span>`:''}</button>`).join(''));
   const dot = $('#dot'), est = $('#estado');
   const st = ({cargando:['','Conectando…'], lento:['bad','Sin respuesta de la base de datos'], ok:['ok','En línea'], error:['bad','Conexión perdida'],
     offline:['bad','Sin internet · se guarda y se envía al volver'], login:['','Inicia sesión'], 'sin-config':['bad','Falta configurar'], 'sin-firebase':['bad','No cargó']})[S.estado] || ['',''];
   const ib = $('#impbtn');
   ib.hidden = S.estado==='login' || S.estado==='sin-config' || S.estado==='sin-firebase';
-  ib.innerHTML = `<span class="dot ${IMP.estado==='conectada'?'ok':IMP.estado==='conectando'?'':'bad'}"></span>${IMP.estado==='conectada' ? esc(IMP.nombre||'Impresora') : IMP.estado==='conectando' ? 'Conectando…' : 'Conectar impresora'}`;
+  ib.innerHTML = `<span class="dot ${IMP.estado==='conectada'?'ok':IMP.estado==='conectando'?'':'bad'}"></span>${IMP.estado==='conectada' ? `<span class="ib-n">${esc(IMP.nombre||'Impresora')}</span>` : IMP.estado==='conectando' ? 'Conectando…' : '<span class="ib-l">Conectar impresora</span><span class="ib-s">Impresora</span>'}`;
   dot.className = 'dot ' + st[0]; est.textContent = st[1];
   if (S.estado==='sin-firebase'){ setHTML($('#view'), `<div class="notice"><h2>No se pudo cargar la app</h2><p>Parece que la conexión se interrumpió mientras abría. Revisa que haya internet y vuelve a intentar.</p><button class="btn primary" data-act="recargar">Reintentar</button></div>`); return; }
   if (S.estado==='sin-config'){ setHTML($('#view'), `<div class="notice"><h2>Falta la configuración</h2><p>Este dispositivo tiene guardada una versión vieja de la app. Toca “Reintentar”; si sigue igual, borra los datos del sitio en Chrome (candado junto a la dirección → Configuración del sitio → Borrar datos).</p><button class="btn primary" data-act="recargar">Reintentar</button></div>`); return; }
