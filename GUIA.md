@@ -45,24 +45,28 @@ Con estas reglas, solo las cuentas que tú crees pueden ver y cambiar las ventas
 3. Aparece un bloque con `const firebaseConfig = { apiKey: "...", ... }`. **Copia esos datos.**
 4. Pégalos en el archivo `public/config.js` o mándamelos y yo los pongo. Estos datos **no son secretos**: solo identifican tu proyecto. La seguridad la dan las contraseñas y las reglas del paso 2.
 
-## 5. Publicar la app (elige una opción)
+## 5. Publicar la app en Firebase Hosting
 
-### Opción A: Netlify Drop (sin instalar nada, recomendada)
-1. Crea una cuenta gratuita en **netlify.com**.
-2. Entra a **app.netlify.com/drop** y **arrastra la carpeta `public`** a la página.
-3. Netlify te da una dirección como `https://cervalina-123.netlify.app`. En **Site configuration → Change site name** puedes cambiarla, por ejemplo a `cervalina-comandas`.
-4. En Firebase: **Authentication → Configuración → Dominios autorizados → Agregar dominio**, y pega tu dirección de Netlify sin `https://`.
+Se hace desde una computadora con **Node.js** instalado (descárgalo de **nodejs.org**, versión LTS). El proyecto ya viene configurado para `cervalina-3cb30`.
 
-Para actualizar la app más adelante, arrastra de nuevo la carpeta en **Deploys** dentro de tu sitio de Netlify.
+1. Descarga esta carpeta del proyecto a la computadora.
+2. Abre una terminal dentro de la carpeta y escribe, uno por uno:
 
-### Opción B: Firebase Hosting (necesita una computadora con Node.js)
 ```bash
 npm install -g firebase-tools
-firebase login
-firebase use --add        # elige tu proyecto
-firebase deploy
 ```
-Te da la dirección `https://TU-PROYECTO.web.app`.
+
+```bash
+firebase login
+```
+
+```bash
+firebase deploy --only hosting
+```
+
+3. Al terminar te da la dirección de la app: **https://cervalina-3cb30.web.app**. Esa dirección ya está autorizada para iniciar sesión, no hay que agregarla en Firebase.
+
+Para actualizar la app más adelante, repite solo el último comando (`firebase deploy --only hosting`). Publicar en Firebase Hosting no gasta créditos y no muestra avisos flotantes.
 
 ## 6. Preparar la tablet Android
 

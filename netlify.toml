@@ -1,9 +1,0 @@
-# Netlify publica la carpeta public tal cual (no hay paso de compilación).
-[build]
-  publish = "public"
-  command = ""
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-    Cache-Control = "no-cache"
