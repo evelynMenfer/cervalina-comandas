@@ -287,6 +287,14 @@ input[type=date]{border:1px solid var(--line);background:var(--surface);border-r
 .mesa-t.mas{align-items:center;justify-content:center;text-align:center;color:var(--ink-2)}
 .mesa-t.mas .mas-i{font:800 28px/1 var(--display);color:var(--olive)}
 .mesa-t.mas b{font-size:15px;color:var(--ink)}
+.mt-pills{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto}
+.subc{display:flex;gap:6px;overflow-x:auto;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--surface-2);scrollbar-width:none}
+.sc{flex:none;display:grid;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 12px;min-height:46px;text-align:left;font-size:13px;color:var(--ink)}
+.sc b{font:800 15px var(--display)}
+.sc.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.sc.mas{border-style:dashed;color:var(--olive);font-weight:700;align-content:center}
+.cs small{background:var(--surface-2);color:var(--ink-2);border-radius:9px;padding:0 6px;font-weight:700}
+.cs.on small{background:rgba(255,255,255,.18);color:inherit}
 .sec-t{font-size:18px;margin:4px 0 10px;display:flex;align-items:center;gap:8px}
 .mesas-g.libres{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
 .mesas-g.libres .mesa-t{min-height:72px;padding:12px 14px;justify-content:center;gap:2px}
@@ -441,7 +449,7 @@ body{margin:0}
 <script src="vendor/firebase-app-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-auth-compat.js?v=10.12.2"></script>
 <script src="vendor/firebase-firestore-compat.js?v=10.12.2"></script>
-<script src="config.js?v=202611182351"></script>
+<script src="config.js?v=202611190003"></script>
 <script>
 // En Netlify (plan gratuito) aparece su aviso flotante abajo a la derecha. En celular se deja una franja libre
 // para que el aviso no tape botones de la app.
@@ -599,12 +607,17 @@ function modalMerma(iid){
 const nivel = ins => (ins.stock||0) <= 0 ? 'agotado' : (ins.stock||0) <= (ins.minimo||0) ? 'bajo' : 'ok';
 
 /* ---------- Acciones de comandas ---------- */
+function elegirDeMesa(mesa){
+  const cs = S.abiertos.filter(c => c.mesa===mesa).sort((a,b) => a.creado-b.creado); if (!cs.length) return null;
+  S.ultimaPorMesa = S.ultimaPorMesa || {};
+  return cs.find(c => c.id===S.ultimaPorMesa[mesa]) || cs[0];
+}
 function preguntarOtraCuenta(mesa, cs){
   M = {mesaOtra: mesa};
   openModal(`<span class="lbl">Mesa ocupada</span><h2>${esc(mesa)} ya tiene ${cs.length===1 ? 'una cuenta abierta' : cs.length+' cuentas abiertas'}</h2>
     <p class="hint" style="margin:0">Toca la cuenta para ir a ella, o abre otra cuenta para esta mesa si van a pagar por separado.</p>
     <div class="rows">${cs.map(c => { const n = c.items.reduce((t,i) => t+i.qty, 0); return `<button class="cuenta" data-act="irACuenta" data-id="${c.id}">
-      <div class="row"><strong>${esc(c.mesa)}</strong><span class="num">${money(c.total)}</span></div>
+      <div class="row"><strong>${esc(etiquetaCuenta(c))}</strong><span class="num">${money(c.total)}</span></div>
       <div class="row"><small>${n} ${n===1?'producto':'productos'} · abierta hace ${mins(c.creado)} min${c.mesero?' · '+esc(c.mesero):''}</small></div>
       <div>${estadoCuenta(c)}</div></button>`; }).join('')}</div>
     <div class="mact"><button class="btn spacer" data-act="cerrar">Cancelar</button><button class="btn" data-act="otraCuentaOk">Abrir otra cuenta para ${esc(mesa)}</button></div>`);
@@ -614,6 +627,7 @@ function crearCuentaCon(mesa, forzar){
     if (existentes.length && !forzar){ preguntarOtraCuenta(mesa, existentes); return; }
     const ref = S.db.collection('pedidos').doc();
     S.cuentaSel = ref.id; ls.set('cv.cuenta', ref.id);
+    S.ultimaPorMesa = S.ultimaPorMesa || {}; S.ultimaPorMesa[mesa] = ref.id;
     const add = S.pendingAdd; S.pendingAdd = null;
     closeModal(); S.ticketAbierto = false;
     const p0 = add && S.productos[add.pid];
@@ -721,6 +735,31 @@ function estadoCuenta(p){
 }
 const MESAS_DEF = [...Array(12)].map((_,i) => 'Mesa '+(i+1)).concat(['Barra','Para llevar','Domicilio']);
 const listaMesas = () => Array.isArray(S.mesas) && S.mesas.length ? S.mesas : MESAS_DEF;
+function hermanas(c){ return S.abiertos.filter(x => x.mesa===c.mesa).sort((a,b) => a.creado-b.creado); }
+function numCuenta(c){ const h = hermanas(c); return h.length>1 ? h.findIndex(x => x.id===c.id) + 1 : 0; }
+function etiquetaCuenta(c){ const n = numCuenta(c); return n ? `${c.mesa} · Cuenta ${n}` : c.mesa; }
+function prioridad(c){
+  if (c.items.some(i => i.est==='nuevo')) return 5;
+  if (c.items.some(i => i.est==='listo')) return 4;
+  if (c.items.some(i => i.est==='cocina')) return 3;
+  if (c.cuentaImpresa) return 2;
+  return 1;
+}
+function gruposPorMesa(lista){
+  const m = new Map();
+  lista.slice().sort((a,b) => a.creado-b.creado).forEach(c => { if (!m.has(c.mesa)) m.set(c.mesa, []); m.get(c.mesa).push(c); });
+  return [...m.values()];
+}
+const urgente = cs => cs.slice().sort((a,b) => prioridad(b)-prioridad(a))[0];
+function tileGrupo(cs){
+  const top = urgente(cs), mesa = cs[0].mesa;
+  const total = cs.reduce((t,c) => t+(c.total||0), 0), n = cs.reduce((t,c) => t+c.items.reduce((u,i) => u+i.qty, 0), 0);
+  const meseros = [...new Set(cs.map(c => c.mesero).filter(Boolean))].join(', ');
+  return `<button class="mesa-t ocupada ${puntoCuenta(top)}" data-act="verGrupo" data-m="${esc(mesa)}">
+    <b>${esc(mesa)}</b><span class="mt-total num">${money(total)}</span>
+    <small>${n} ${n===1?'producto':'productos'} · ${Math.max(...cs.map(c => mins(c.creado)))} min${meseros?' · '+esc(meseros):''}</small>
+    <span class="mt-pills">${estadoCuenta(top)}${cs.length>1 ? `<span class="pill p-mute">${cs.length} cuentas</span>` : ''}</span></button>`;
+}
 function tileCuenta(c, suf){
   const n = c.items.reduce((t,i) => t+i.qty, 0);
   return `<button class="mesa-t ocupada ${puntoCuenta(c)}" data-act="verMesa" data-id="${c.id}">
@@ -733,10 +772,10 @@ function vMesas(){
   L.forEach(m => {
     const cs = abiertas.filter(c => c.mesa===m);
     if (!cs.length) libres.push(`<button class="mesa-t libre" data-act="abrirMesa" data-m="${esc(m)}"><b>${esc(m)}</b><span class="mt-est">Libre</span></button>`);
-    cs.forEach((c,ix) => ocup.push(tileCuenta(c, cs.length>1 ? ` (${ix+1})` : '')));
+    if (cs.length) ocup.push(tileGrupo(cs));
     if (cs.length && !/^mesa\b/i.test(m)) libres.push(`<button class="mesa-t libre mas" data-act="abrirOtra" data-m="${esc(m)}"><b>+ ${esc(m)}</b><span class="mt-est">Otra cuenta</span></button>`);
   });
-  abiertas.filter(c => !L.includes(c.mesa)).forEach(c => ocup.push(tileCuenta(c, '')));
+  gruposPorMesa(abiertas.filter(c => !L.includes(c.mesa))).forEach(cs => ocup.push(tileGrupo(cs)));
   const total = abiertas.reduce((t,c) => t+(c.total||0), 0);
   return `<div class="mesas-v">
     <div class="toolbar"><div class="mh-tit"><h2>Mesas</h2><span class="hint">${abiertas.length} ${abiertas.length===1?'cuenta abierta':'cuentas abiertas'}${abiertas.length ? ' · '+money(total) : ''}</span></div>
@@ -744,7 +783,7 @@ function vMesas(){
       <button class="btn" data-act="editarMesas">Editar mesas</button>
       <button class="btn primary" data-act="nueva">+ Otra cuenta</button></div>
     ${!Object.keys(S.productos).length ? `<div class="empty" style="display:grid;gap:10px;justify-items:center;margin-bottom:16px"><span>Aún no hay productos. Carga la carta de Cervalina o agrégalos en la pestaña Menú.</span>${S.loaded.p ? `<button class="btn primary" data-act="cargarCarta">Cargar carta e insumos de Cervalina</button>` : ''}</div>` : ''}
-    ${ocup.length ? `<h3 class="sec-t">Cuentas abiertas <span class="mc-n num">${ocup.length}</span></h3><div class="mesas-g">${ocup.join('')}</div>` : ''}
+    ${ocup.length ? `<h3 class="sec-t">Mesas ocupadas <span class="mc-n num">${ocup.length}</span></h3><div class="mesas-g">${ocup.join('')}</div>` : ''}
     <h3 class="sec-t">Mesas libres <span class="mc-n num">${libres.filter(x => !x.includes(' mas"')).length}</span></h3><div class="mesas-g libres">${libres.join('')}</div>
     <p class="hint">Toca una mesa libre para abrir su cuenta y tomar el pedido. Toca una ocupada para agregar productos o cobrar.</p>
   </div>`;
@@ -757,23 +796,23 @@ function vComandas(){
   if (!cs.includes(S.cat)) S.cat = cs[0] || null;
   const prods = S.cat ? prodsDe(S.cat) : [];
   const cuentasHTML = `<button class="btn primary block" data-act="irMesas">← Mesas</button>` +
-    (cuentas.length ? cuentas.map(c => `<button class="cuenta ${c.id===S.cuentaSel?'on':''}" data-act="selCuenta" data-id="${c.id}">
-        <div class="row"><strong>${esc(c.mesa)}</strong><span class="num">${money(c.total)}</span></div>
-        <div class="row"><small>#${esc(c.folio)} · ${mins(c.creado)} min${c.mesero?' · '+esc(c.mesero):''}</small></div>
-        <div>${estadoCuenta(c)}</div></button>`).join('')
+    (cuentas.length ? gruposPorMesa(cuentas).map(cs => { const top = urgente(cs), on = cs.some(c => c.id===S.cuentaSel); return `<button class="cuenta ${on?'on':''}" data-act="selGrupo" data-m="${esc(cs[0].mesa)}">
+        <div class="row"><strong>${esc(cs[0].mesa)}</strong><span class="num">${money(cs.reduce((t,c) => t+(c.total||0), 0))}</span></div>
+        <div class="row"><small>${cs.length>1 ? cs.length+' cuentas · ' : '#'+esc(cs[0].folio)+' · '}${Math.max(...cs.map(c => mins(c.creado)))} min</small></div>
+        <div>${estadoCuenta(top)}</div></button>`; }).join('')
       : `<p class="empty">No hay cuentas abiertas. Abre una para tomar el pedido.</p>`);
   const carta = cs.length ? `<div class="chips">${cs.map(c => `<button class="chip ${c===S.cat?'on':''}" data-act="cat" data-c="${esc(c)}">${esc(c)}</button>`).join('')}</div>
     <div class="grid">${prods.map(cardProd).join('')}</div>`
     : `<div class="empty" style="display:grid;gap:10px;justify-items:center"><span>Aún no hay productos. Carga la carta de Cervalina o agrégalos en la pestaña Menú.</span>${S.loaded.p ? `<button class="btn primary" data-act="cargarCarta">Cargar carta e insumos de Cervalina</button>` : ''}</div>`;
-  const strip = `<div class="cstrip" id="k-cstrip" data-keep><button class="cs nueva" data-act="irMesas">← Mesas</button>${cuentas.map(c => `<button class="cs ${c.id===S.cuentaSel?'on':''}" data-act="selCuenta" data-id="${c.id}"><span class="cs-dot ${puntoCuenta(c)}"></span><b>${esc(c.mesa)}</b><span class="num">${money(c.total)}</span></button>`).join('')}</div>`;
+  const strip = `<div class="cstrip" id="k-cstrip" data-keep><button class="cs nueva" data-act="irMesas">← Mesas</button>${gruposPorMesa(cuentas).map(cs => `<button class="cs ${cs.some(c => c.id===S.cuentaSel)?'on':''}" data-act="selGrupo" data-m="${esc(cs[0].mesa)}"><span class="cs-dot ${puntoCuenta(urgente(cs))}"></span><b>${esc(cs[0].mesa)}</b>${cs.length>1 ? `<small>${cs.length}</small>` : ''}<span class="num">${money(cs.reduce((t,c) => t+(c.total||0), 0))}</span></button>`).join('')}</div>`;
   const nArt = sel ? sel.items.reduce((t,i) => t+i.qty, 0) : 0;
   const nNuevo = sel ? sel.items.filter(i => i.est==='nuevo').reduce((t,i) => t+i.qty, 0) : 0;
-  const tbar = sel ? `<button class="tbar" data-act="abrirCuenta"><span class="tb-info"><b>${esc(sel.mesa)}</b><small>${nArt} ${nArt===1?'producto':'productos'}${nNuevo ? ` · ${nNuevo} sin enviar` : ''}</small></span><b class="tb-total num">${money(sel.total)}</b><span class="tb-cta">Ver cuenta</span></button>` : '';
+  const tbar = sel ? `<button class="tbar" data-act="abrirCuenta"><span class="tb-info"><b>${esc(etiquetaCuenta(sel))}</b><small>${nArt} ${nArt===1?'producto':'productos'}${nNuevo ? ` · ${nNuevo} sin enviar` : ''}</small></span><b class="tb-total num">${money(sel.total)}</b><span class="tb-cta">Ver cuenta</span></button>` : '';
   return `<div class="cmd">
     ${strip}
     <aside class="cuentas" id="k-cuentas" data-keep>${cuentasHTML}</aside>
     <section id="k-carta" data-keep>${carta}</section>
-    <section class="ticket ${sel && S.ticketAbierto ? 'abierto' : ''}">${sel ? `<button class="t-cerrar" data-act="cerrarCuenta">← Seguir agregando productos</button>` + ticketHTML(sel) : `<div class="t-head"><h3>Sin cuenta seleccionada</h3><small class="hint">Elige una cuenta a la izquierda o abre una nueva. Si tocas un producto sin cuenta, te pediremos la mesa.</small></div>`}</section>
+    <section class="ticket ${sel && S.ticketAbierto ? 'abierto' : ''}">${sel ? `<button class="t-cerrar" data-act="cerrarCuenta">← Seguir agregando productos</button>` + pestanasCuenta(sel) + ticketHTML(sel) : `<div class="t-head"><h3>Sin cuenta seleccionada</h3><small class="hint">Elige una cuenta a la izquierda o abre una nueva. Si tocas un producto sin cuenta, te pediremos la mesa.</small></div>`}</section>
     ${tbar}
   </div>`;
 }
@@ -806,6 +845,10 @@ function quitarUno(pid, vn){
   const ls = c.items.filter(i => i.pid===pid && (i.vn||'')===(vn||'') && i.est==='nuevo'); if (!ls.length) return;
   cambiarQty((ls.find(i => !i.nota) || ls[ls.length-1]).k, -1);
 }
+function pestanasCuenta(sel){
+  const hs = hermanas(sel);
+  return `<div class="subc" role="tablist" aria-label="Cuentas de ${esc(sel.mesa)}">${hs.length>1 ? hs.map((c,ix) => `<button class="sc ${c.id===sel.id?'on':''}" role="tab" aria-selected="${c.id===sel.id}" data-act="subCuenta" data-id="${c.id}"><span>Cuenta ${ix+1}</span><b class="num">${money(c.total)}</b></button>`).join('') : ''}<button class="sc mas" data-act="abrirOtra" data-m="${esc(sel.mesa)}">${hs.length>1 ? '+ Otra cuenta' : '+ Cuenta aparte'}</button></div>`;
+}
 function ticketHTML(c){
   const nuevos = c.items.filter(i => i.est==='nuevo').reduce((s,i) => s+i.qty, 0);
   const estLbl = {nuevo:['p-warn','Sin enviar'], cocina:['p-lav','Preparando'], listo:['p-ok','Listo'], entregado:['p-mute','Entregado']};
@@ -823,7 +866,8 @@ function ticketHTML(c){
       <div class="side"><span class="num">${money(i.precio*i.qty)}</span><span class="pill ${cls}">${l}</span></div></div>`;
   }).join('') : `<p class="empty" style="margin:10px">Toca productos de la carta para agregarlos.</p>`;
   const armadoCancel = S.confirm==='c:'+c.id;
-  return `<div class="t-head"><span class="lbl">Cuenta #${esc(c.folio)}</span><h3>${esc(c.mesa)}</h3>
+  const nc = numCuenta(c);
+  return `<div class="t-head"><span class="lbl">${nc ? `Cuenta ${nc} de ${hermanas(c).length} · ` : 'Cuenta '}#${esc(c.folio)}</span><h3>${esc(c.mesa)}</h3>
       <small class="hint">Abierta ${hora(c.creado)}${c.mesero?' · Mesero: '+esc(c.mesero):''}</small></div>
     <div class="t-items" id="k-items" data-keep>${items}</div>
     <div class="t-foot">
@@ -901,14 +945,14 @@ function vCocina(){
       const otra = S.area==='todo' ? 0 : p.items.filter(i => (i.est==='cocina'||i.est==='listo') && !enArea(i)).reduce((s,i)=>s+i.qty,0);
       const otraNom = S.area==='cocina' ? 'de barra' : 'de cocina';
       return `<article class="kt ${m>=25?'late':m>=15?'warn':''}">
-        <header><div><strong>${esc(p.mesa)}</strong><br><small class="hint">#${esc(p.folio)}${p.mesero?' · '+esc(p.mesero):''}</small></div><span class="pill ${m>=25?'p-bad':m>=15?'p-warn':'p-mute'} num">${m} min</span></header>
+        <header><div><strong>${esc(etiquetaCuenta(p))}</strong><br><small class="hint">#${esc(p.folio)}${p.mesero?' · '+esc(p.mesero):''}</small></div><span class="pill ${m>=25?'p-bad':m>=15?'p-warn':'p-mute'} num">${m} min</span></header>
         <ul>${items.map(i => `<li class="${i.est==='listo'?'listo':''}"><button data-act="itemListo" data-p="${p.id}" data-k="${i.k}"><b class="num">${i.qty}×</b><span>${esc(i.nombre)}${i.vn?' · '+esc(i.vn):''}${i.nota?`<span class="nota">${esc(i.nota)}</span>`:''}</span></button></li>`).join('')}</ul>
         <footer>${otra?`<p class="hint" style="margin:0 0 8px">También lleva ${otra} ${otra===1?'producto':'productos'} ${otraNom}.</p>`:''}<button class="btn olive block" data-act="ticketListo" data-p="${p.id}">Todo listo</button></footer></article>`;
     }).join('')}</div>` : `<p class="empty">Nada pendiente. Las comandas aparecen aquí cuando el mesero toca “Enviar a cocina y barra”.</p>`}
   <div class="sec"><h3>Listos para entregar</h3>
   ${listos.length ? `<div class="listos">${listos.map(p => {
       const n = p.items.filter(i => i.est==='listo' && enArea(i)).reduce((s,i)=>s+i.qty,0);
-      return `<div class="listo-card"><div><strong>${esc(p.mesa)}</strong><small>${n} productos · #${esc(p.folio)}</small></div><button class="btn sm" data-act="entregar" data-p="${p.id}">${S.area==='cocina'?'Comida entregada':S.area==='barra'?'Bebidas entregadas':'Entregado'}</button></div>`;
+      return `<div class="listo-card"><div><strong>${esc(etiquetaCuenta(p))}</strong><small>${n} productos · #${esc(p.folio)}</small></div><button class="btn sm" data-act="entregar" data-p="${p.id}">${S.area==='cocina'?'Comida entregada':S.area==='barra'?'Bebidas entregadas':'Entregado'}</button></div>`;
     }).join('')}</div>` : `<p class="hint">Sin pendientes de entrega.</p>`}</div>`;
 }
 
@@ -1223,8 +1267,12 @@ const ACTS = {
   },
   verMesa: d => {
     const c = S.abiertos.find(x => x.id===d.id); if (!c) return;
+    S.ultimaPorMesa = S.ultimaPorMesa || {}; S.ultimaPorMesa[c.mesa] = c.id;
     S.cuentaSel = d.id; S.ticketAbierto = c.items.length > 0; S.confirm = null; render();
   },
+  verGrupo: d => { const c = elegirDeMesa(d.m); if (c) ACTS.verMesa({id:c.id}); },
+  selGrupo: d => { const c = elegirDeMesa(d.m); if (!c) return; S.ultimaPorMesa[c.mesa] = c.id; S.ticketAbierto = false; S.cuentaSel = c.id; S.confirm = null; render(); },
+  subCuenta: d => { const c = S.abiertos.find(x => x.id===d.id); if (!c) return; S.ultimaPorMesa = S.ultimaPorMesa || {}; S.ultimaPorMesa[c.mesa] = c.id; S.cuentaSel = c.id; S.confirm = null; render(); },
   cat: d => { S.cat = d.c; ls.set('cv.cat', d.c); render(); },
   abrirCuenta: () => { S.ticketAbierto = true; render(); },
   cerrarCuenta: () => { S.ticketAbierto = false; render(); },
